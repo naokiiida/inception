@@ -25,7 +25,7 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
         sleep 1
     done
     
-    # Set root password and create database/user for WordPress
+    # Set root access
     echo "Setting up database and users..."
     mysql --protocol=socket -uroot -hlocalhost --socket=/var/run/mysqld/mysqld.sock <<-EOSQL
         SET @@SESSION.SQL_LOG_BIN=0;
@@ -35,10 +35,7 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
         GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION;
         DROP DATABASE IF EXISTS test;
         FLUSH PRIVILEGES;
-        CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-        CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-        GRANT ALL ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-        FLUSH PRIVILEGES;
+
 EOSQL
     
     # Shutdown temporary server

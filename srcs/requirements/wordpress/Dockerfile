@@ -79,6 +79,7 @@ RUN set -eux; \
     echo "${WORDPRESS_SHA1} *wordpress.tar.gz" | sha1sum -c -; \
     tar -xzf wordpress.tar.gz; \
     cp -a wordpress/* /var/www/html/; \
+    cp -a wordpress /usr/src/wordpress; \
     rm -rf wordpress wordpress.tar.gz; \
     chown -R www-data:www-data /var/www/html; \
     chmod -R 755 /var/www/html
@@ -86,6 +87,10 @@ RUN set -eux; \
 # Copy entrypoint script
 COPY ./docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Copy WordPress setup script
+COPY ./conf/wp-setup.sh /conf/wp-setup.sh
+RUN chmod +x /conf/wp-setup.sh
 
 # Set up health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
