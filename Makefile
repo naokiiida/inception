@@ -17,33 +17,35 @@ hosts:
 		echo "$(LOGIN).42.fr already exists in /etc/hosts"; \
 	fi
 
-vm-create:
-	@echo "Creating Inception VM from scratch..."
-	@mkdir -p /goinfre/niida/vm
-	@mkdir -p /goinfre/niida/iso
+vm-download:
 	@echo "Downloading Debian ISO..."
+	@mkdir -p /goinfre/niida/iso
 	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-netinst.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.11.0-amd64-netinst.iso"
+
+vm-init:
 	@echo "Creating VM..."
+	@mkdir -p /goinfre/niida/vm
 	VBoxManage createvm --name "Inception" --ostype "Debian_64" --register --basefolder "/goinfre/niida/vm"
 	VBoxManage modifyvm "Inception" --memory 2048 --vram 128
 	VBoxManage modifyvm "Inception" --cpus 2
+
+vm-storage:
+	@echo "Setting up storage..."
 	VBoxManage createhd --filename "/goinfre/niida/vm/Inception/Inception.vdi" --size 20480 --format VDI
 	VBoxManage storagectl "Inception" --name "SATA Controller" --add sata --controller IntelAHCI
 	VBoxManage storageattach "Inception" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "/goinfre/niida/vm/Inception/Inception.vdi"
 	VBoxManage storagectl "Inception" --name "IDE Controller" --add ide --controller PIIX4
 	VBoxManage storageattach "Inception" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "/goinfre/niida/iso/debian-12.11.0-amd64-netinst.iso"
+
+vm-config:
+	@echo "Configuring VM settings..."
 	VBoxManage modifyvm "Inception" --boot1 dvd --boot2 disk --boot3 none --boot4 none
-	VBoxManage modifyvm "Inception" --audio none
-	VBoxManage hostonlyif create || true
-	VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0
-	VBoxManage dhcpserver add --netname HostInterfaceNetworking-vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0 --lowerip 192.168.56.100 --upperip 192.168.56.200 --enable || true
-	VBoxManage modifyvm "Inception" --nic1 hostonly --hostonlyadapter1 vboxnet0
+	VBoxManage modifyvm "Inception" --audio-driver none
 	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
-	@echo "VM 'Inception' created successfully with Debian ISO attached!"
-	@echo "Next steps:"
-	@echo "1. Start VM: make vm-start-gui"
-	@echo "2. Install Debian OS manually"
-	@echo "3. After OS installation: make vm-setup-docker"
+
+vm-create: vm-download vm-init vm-storage vm-network-setup vm-config
+	@echo "VM 'Inception' created successfully!"
+	@echo "Start VM with: make vm-start-gui"
 
 vm-setup-docker:
 	@echo "Setting up Docker in VM..."
@@ -126,4 +128,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-create vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
+.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
