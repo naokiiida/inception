@@ -7,7 +7,7 @@ services:
       - "443:443"
     volumes:
       - ../data/wordpress_files:/var/www/html
-      - nginx_ssl:/etc/nginx/ssl
+      - ../data/nginx_ssl:/etc/nginx/ssl
     environment:
       - LOGIN=${LOGIN}
       - BACKEND_SERVICE=${BACKEND_SERVICE:-wordpress}
@@ -62,12 +62,12 @@ services:
       - inception
 
 volumes:
-  wordpress_db:
-    driver: local
-  wordpress_files:
-    driver: local
-  nginx_ssl:
-    driver: local
+  # wordpress_db:
+  #   driver: local
+  # wordpress_files:
+  #   driver: local
+  # nginx_ssl:
+  #   driver: local
 
 networks:
   inception:
