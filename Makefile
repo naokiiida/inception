@@ -48,12 +48,24 @@ vm-config:
 
 vm-create: vm-download vm-init vm-storage vm-network-setup vm-config
 	@echo "VM 'Inception' created successfully!"
-	@echo "For automated installation:"
-	@echo "1. Start VM: make vm-start-gui"  
-	@echo "2. At boot menu, press TAB and add: auto url=http://192.168.56.1:8000/preseed.cfg"
-	@echo "3. Run 'make vm-serve-preseed' in another terminal to serve the preseed file"
+	@echo "Starting preseed server in background..."
+	nohup make vm-serve-preseed > /tmp/preseed-server.log 2>&1 & echo $$! > /tmp/preseed-server.pid
+	@sleep 2
+	@echo "Starting VM for automated installation..."
+	make vm-start-gui
 	@echo ""
+	@echo "At boot menu, press TAB and add: auto url=http://192.168.56.1:8000/preseed.cfg"
 	@echo "Default credentials: root/root, user/user"
+	@echo "Stop preseed server with: make vm-stop-preseed"
+
+vm-stop-preseed:
+	@if [ -f /tmp/preseed-server.pid ]; then \
+		kill `cat /tmp/preseed-server.pid` 2>/dev/null || true; \
+		rm -f /tmp/preseed-server.pid /tmp/preseed-server.log; \
+		echo "Preseed server stopped"; \
+	else \
+		echo "Preseed server not running"; \
+	fi
 
 vm-serve-preseed:
 	@echo "Serving preseed file on http://192.168.56.1:8000"
@@ -82,9 +94,6 @@ vm-setup-docker:
 	@echo ""
 	@echo "# Test Docker"
 	@echo "docker run hello-world"
-
-vm:
-	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/"
 
 vm-start:
 	VBoxManage startvm "Inception" --type headless
@@ -141,4 +150,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
+.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
