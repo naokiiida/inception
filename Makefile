@@ -1,6 +1,6 @@
 NAME = inception
 LOGIN ?= $(shell whoami)
-COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker-compose -f srcs/docker-compose.yml
+COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
 
 all: up
 
@@ -89,27 +89,12 @@ vm-serve-preseed:
 	@echo "Stop with Ctrl+C after installation completes"
 	cd /goinfre/niida/42share && python3 -m http.server 8000 --bind 192.168.56.1
 
-vm-setup-docker:
-	@echo "Setting up Docker in VM..."
-	@echo "Run these commands inside the VM after SSH connection:"
+vm-test-docker:
+	@echo "Testing Docker installation in VM..."
+	@echo "SSH to the VM and run:"
 	@echo "ssh user@192.168.56.100"
-	@echo ""
-	@echo "# Update system"
-	@echo "sudo apt update && sudo apt upgrade -y"
-	@echo ""
-	@echo "# Install Docker"
-	@echo "sudo apt install -y ca-certificates curl gnupg lsb-release"
-	@echo "sudo mkdir -p /etc/apt/keyrings"
-	@echo "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
-	@echo "echo \"deb [arch=\$$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$$(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
-	@echo "sudo apt update"
-	@echo "sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
-	@echo ""
-	@echo "# Add user to docker group"
-	@echo "sudo usermod -aG docker \$$USER"
-	@echo "newgrp docker"
-	@echo ""
-	@echo "# Test Docker"
+	@echo "docker --version"
+	@echo "docker compose version"
 	@echo "docker run hello-world"
 
 vm-start:
@@ -167,4 +152,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
+.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
