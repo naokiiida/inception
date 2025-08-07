@@ -61,7 +61,7 @@ services:
     networks:
       - inception
 
-volumes:
+# volumes:
   # wordpress_db:
   #   driver: local
   # wordpress_files:
