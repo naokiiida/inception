@@ -4,18 +4,37 @@ COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose
 
 all: up
 
-up: hosts
+up: vm-start-gui ssl-setup
 	$(COMPOSE) up -d
 
-hosts:
-	@echo "Configuring /etc/hosts for $(LOGIN).42.fr..."
-	@if ! grep -q "$(LOGIN).42.fr" /etc/hosts 2>/dev/null; then \
-		echo "127.0.0.1 $(LOGIN).42.fr" | sudo tee -a /etc/hosts > /dev/null && \
-		echo "Added $(LOGIN).42.fr to /etc/hosts" || \
-		echo "Failed to add $(LOGIN).42.fr to /etc/hosts (sudo required)"; \
-	else \
-		echo "$(LOGIN).42.fr already exists in /etc/hosts"; \
-	fi
+ssl-setup:
+	@echo "Setting up SSL certificates for host system access..."
+	@mkdir -p ~/data/nginx_ssl
+	@echo "SSL certificates will be available in ~/data/nginx_ssl/ after container start"
+
+browser-setup:
+	@echo ""
+	@echo "=== Browser Configuration for $(LOGIN).42.fr (No sudo required) ==="
+	@echo ""
+	@echo "Option 1: Browser Extensions"
+	@echo "  Chrome: Install 'Host Admin App' extension"
+	@echo "  Firefox: Install 'Virtual Hosts' extension"
+	@echo "  Add mapping: 127.0.0.1 -> $(LOGIN).42.fr"
+	@echo ""
+	@echo "Option 2: Import SSL Certificate (recommended)"
+	@echo "  1. After 'make up', certificate will be at: ~/data/nginx_ssl/cert.pem"
+	@echo "  2. Chrome: Settings -> Privacy & Security -> Security -> Manage Certificates -> Authorities -> Import"
+	@echo "  3. Firefox: Settings -> Privacy & Security -> Certificates -> View Certificates -> Authorities -> Import"
+	@echo "  4. Import ~/data/nginx_ssl/cert.pem"
+	@echo ""
+	@echo "Option 3: Firefox about:config (Advanced)"
+	@echo "  1. Type about:config in address bar"
+	@echo "  2. Search for 'network.dns.localDomains'"
+	@echo "  3. Add '$(LOGIN).42.fr' to redirect to localhost"
+	@echo ""
+	@echo "Testing: Use 'make test-nginx-host-header' to test without /etc/hosts"
+	@echo "Access: https://$(LOGIN).42.fr (after browser configuration)"
+	@echo ""
 
 vm-download:
 	@echo "Downloading Debian ISO..."
@@ -93,9 +112,8 @@ vm-test-docker:
 	@echo "Testing Docker installation in VM..."
 	@echo "SSH to the VM and run:"
 	@echo "ssh -p 2222 user@localhost"
-	@echo "docker --version"
-	@echo "docker compose version"
-	@echo "docker run hello-world"
+	ssh -p 2222 user@localhost "docker --version"
+	ssh -p 2222 user@localhost "docker compose version"
 
 vm-start:
 	VBoxManage startvm "Inception" --type headless
@@ -147,6 +165,42 @@ build:
 logs:
 	$(COMPOSE) logs -f
 
+test-nginx-internal:
+	@echo "Testing nginx server access from inside container (skip cert verification)..."
+	docker exec $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost
+
+test-nginx-internal-ssl:
+	@echo "Testing nginx server access from inside container (with SSL verification)..."
+	docker exec $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
+
+test-nginx-host:
+	@echo "Testing nginx server access from host system (skip cert verification)..."
+	@echo "Using domain: $(LOGIN).42.fr"
+	curl -k -I https://$(LOGIN).42.fr
+
+test-nginx-host-ssl:
+	@echo "Testing nginx server access from host system (with SSL verification)..."
+	@echo "Using domain: $(LOGIN).42.fr"
+	@if [ -f ~/data/nginx_ssl/cert.pem ]; then \
+		curl --cacert ~/data/nginx_ssl/cert.pem -I https://$(LOGIN).42.fr; \
+	else \
+		echo "SSL certificate not found. Run 'make up' first to generate certificates."; \
+	fi
+
+test-nginx-host-header:
+	@echo "Testing nginx server using Host header (no /etc/hosts modification needed)..."
+	@echo "Using domain: $(LOGIN).42.fr"
+	curl -k -H "Host: $(LOGIN).42.fr" -I https://127.0.0.1
+
+test-nginx-host-header-ssl:
+	@echo "Testing nginx server using Host header with SSL verification..."
+	@echo "Using domain: $(LOGIN).42.fr"
+	@if [ -f ~/data/nginx_ssl/cert.pem ]; then \
+		curl --cacert ~/data/nginx_ssl/cert.pem -H "Host: $(LOGIN).42.fr" -I https://127.0.0.1; \
+	else \
+		echo "SSL certificate not found. Run 'make up' first to generate certificates."; \
+	fi
+
 clean: down
 	docker system prune -f
 
@@ -156,4 +210,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
+.PHONY: all up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
