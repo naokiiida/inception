@@ -42,10 +42,23 @@ vm-config:
 	VBoxManage modifyvm "Inception" --boot1 dvd --boot2 disk --boot3 none --boot4 none
 	VBoxManage modifyvm "Inception" --audio-driver none
 	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
+	@echo "Copying preseed file to shared folder..."
+	@mkdir -p /goinfre/niida/42share
+	cp preseed.cfg /goinfre/niida/42share/
 
 vm-create: vm-download vm-init vm-storage vm-network-setup vm-config
 	@echo "VM 'Inception' created successfully!"
-	@echo "Start VM with: make vm-start-gui"
+	@echo "For automated installation:"
+	@echo "1. Start VM: make vm-start-gui"  
+	@echo "2. At boot menu, press TAB and add: auto url=http://192.168.56.1:8000/preseed.cfg"
+	@echo "3. Run 'make vm-serve-preseed' in another terminal to serve the preseed file"
+	@echo ""
+	@echo "Default credentials: root/root, user/user"
+
+vm-serve-preseed:
+	@echo "Serving preseed file on http://192.168.56.1:8000"
+	@echo "Stop with Ctrl+C after installation completes"
+	cd /goinfre/niida/42share && python3 -m http.server 8000 --bind 192.168.56.1
 
 vm-setup-docker:
 	@echo "Setting up Docker in VM..."
@@ -128,4 +141,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
+.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info 
