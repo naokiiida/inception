@@ -22,6 +22,11 @@ vm-download:
 	@mkdir -p /goinfre/niida/iso
 	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-netinst.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.11.0-amd64-netinst.iso"
 
+vm-download-full:
+	@echo "Downloading full Debian ISO (offline installation)..."
+	@mkdir -p /goinfre/niida/iso
+	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-DVD-1.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/debian-12.11.0-amd64-DVD-1.iso"
+
 vm-init:
 	@echo "Creating VM..."
 	@mkdir -p /goinfre/niida/vm
@@ -41,6 +46,7 @@ vm-config:
 	@echo "Configuring VM settings..."
 	VBoxManage modifyvm "Inception" --boot1 dvd --boot2 disk --boot3 none --boot4 none
 	VBoxManage modifyvm "Inception" --audio-driver none
+	VBoxManage modifyvm "Inception" --nic2 hostonly --hostonlyadapter2 vboxnet0
 	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
 	@echo "Copying preseed file to shared folder..."
 	@mkdir -p /goinfre/niida/42share
@@ -114,12 +120,12 @@ vm-status:
 	VBoxManage showvminfo "Inception" --machinereadable | grep VMState
 
 vm-network-setup:
-	@echo "Setting up VirtualBox host-only network..."
+	@echo "Setting up VirtualBox dual network (NAT + host-only)..."
 	VBoxManage hostonlyif create || true
 	VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0
 	VBoxManage dhcpserver add --netname HostInterfaceNetworking-vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0 --lowerip 192.168.56.100 --upperip 192.168.56.200 --enable || true
-	VBoxManage modifyvm "Inception" --nic1 hostonly --hostonlyadapter1 vboxnet0
-	@echo "Network setup complete. VM will use 192.168.56.x subnet"
+	VBoxManage modifyvm "Inception" --nic1 nat
+	@echo "Network setup complete. VM uses NAT for internet + host-only for internal communication"
 
 vm-network-bridged:
 	@echo "Configuring VM for bridged networking..."
