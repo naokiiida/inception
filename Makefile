@@ -46,7 +46,6 @@ vm-config:
 	@echo "Configuring VM settings..."
 	VBoxManage modifyvm "Inception" --boot1 dvd --boot2 disk --boot3 none --boot4 none
 	VBoxManage modifyvm "Inception" --audio-driver none
-	VBoxManage modifyvm "Inception" --nic2 hostonly --hostonlyadapter2 vboxnet0
 	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
 	@echo "Copying preseed file to shared folder..."
 	@mkdir -p /goinfre/niida/42share
@@ -60,7 +59,7 @@ vm-create: vm-download vm-init vm-storage vm-network-setup vm-config
 	@echo "Starting VM for automated installation..."
 	make vm-start-gui
 	@echo ""
-	@echo "At boot menu, press TAB and add: auto url=http://192.168.56.1:8000/preseed.cfg"
+	@echo "At boot menu, press TAB and add: auto url=http://10.0.2.2:8000/preseed.cfg"
 	@echo "Default credentials: root/root, user/user"
 	@echo "Stop preseed server with: make vm-stop-preseed"
 
@@ -74,14 +73,15 @@ vm-stop-preseed:
 	fi
 
 vm-serve-preseed:
-	@echo "Serving preseed file on http://192.168.56.1:8000"
+	@echo "Serving preseed file on http://0.0.0.0:8000"
+	@echo "VM will access it via http://10.0.2.2:8000"
 	@echo "Stop with Ctrl+C after installation completes"
-	cd /goinfre/niida/42share && python3 -m http.server 8000 --bind 192.168.56.1
+	cd /goinfre/niida/42share && python3 -m http.server 8000
 
 vm-setup-docker:
 	@echo "Setting up Docker in VM..."
 	@echo "Run these commands inside the VM after SSH connection:"
-	@echo "ssh user@192.168.56.100"
+	@echo "ssh -p 2222 user@localhost"
 	@echo ""
 	@echo "# Update system"
 	@echo "sudo apt update && sudo apt upgrade -y"
@@ -120,12 +120,16 @@ vm-status:
 	VBoxManage showvminfo "Inception" --machinereadable | grep VMState
 
 vm-network-setup:
-	@echo "Setting up VirtualBox dual network (NAT + host-only)..."
-	VBoxManage hostonlyif create || true
-	VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0
-	VBoxManage dhcpserver add --netname HostInterfaceNetworking-vboxnet0 --ip 192.168.56.1 --netmask 255.255.255.0 --lowerip 192.168.56.100 --upperip 192.168.56.200 --enable || true
+	@echo "Setting up VirtualBox NAT networking with port forwarding..."
 	VBoxManage modifyvm "Inception" --nic1 nat
-	@echo "Network setup complete. VM uses NAT for internet + host-only for internal communication"
+	VBoxManage modifyvm "Inception" --natpf1 "ssh,tcp,,2222,,22"
+	VBoxManage modifyvm "Inception" --natpf1 "http,tcp,,8080,,80"
+	VBoxManage modifyvm "Inception" --natpf1 "https,tcp,,8443,,443"
+	@echo "Network setup complete:"
+	@echo "  - VM gets internet via NAT"
+	@echo "  - SSH: localhost:2222"
+	@echo "  - HTTP: localhost:8080"
+	@echo "  - HTTPS: localhost:8443"
 
 vm-network-bridged:
 	@echo "Configuring VM for bridged networking..."
@@ -133,10 +137,10 @@ vm-network-bridged:
 	@echo "Bridged networking configured"
 
 vm-network-info:
-	@echo "VirtualBox network configuration:"
-	VBoxManage list hostonlyifs
-	@echo "\nVM network settings:"
-	VBoxManage showvminfo "Inception" | grep -E "(NIC|MAC|Cable|Line)"
+	@echo "VM network configuration:"
+	VBoxManage showvminfo "Inception" | grep -E "(NIC|MAC|Cable|Line|Rule)"
+	@echo "\nPort forwarding rules:"
+	VBoxManage showvminfo "Inception" | grep "NIC 1 Rule"
 
 down:
 	$(COMPOSE) down
