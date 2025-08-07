@@ -38,7 +38,7 @@ define('WP_DEBUG', false);" wp-config.php
     # Install WordPress if not already installed
     if ! wp core is-installed --allow-root; then
         wp core install \
-            --url="${WORDPRESS_URL:-http://localhost}" \
+            --url="${WORDPRESS_URL:-https://${LOGIN}.42.fr}" \
             --title="${WORDPRESS_TITLE:-WordPress}" \
             --admin_user="${WORDPRESS_ADMIN_USER}" \
             --admin_password="${WORDPRESS_ADMIN_PASSWORD}" \

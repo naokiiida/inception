@@ -10,6 +10,7 @@ services:
       - ../data/nginx_ssl:/etc/nginx/ssl
     environment:
       - LOGIN=${LOGIN}
+      - DOMAIN=${LOGIN}.42.fr
       - BACKEND_SERVICE=${BACKEND_SERVICE:-wordpress}
       - BACKEND_PORT=${BACKEND_PORT:-9000}
       - BACKEND_PROTOCOL=${BACKEND_PROTOCOL:-fastcgi}
@@ -31,6 +32,7 @@ services:
       - WORDPRESS_DB_USER=${DB_USER:-}
       - WORDPRESS_DB_PASSWORD=${DB_PASSWORD:-}
       - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - WORDPRESS_URL=https://${LOGIN}.42.fr
       - WORDPRESS_TITLE=${WP_TITLE}
       - WORDPRESS_ADMIN_USER=${WP_ADMIN_USER:-}
       - WORDPRESS_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD:-}

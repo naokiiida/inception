@@ -7,7 +7,7 @@ ARG WORDPRESS_SHA1=c4d8b210decd86dc1bf5deecb3a4a2e1b70024f6
 # Default environment variables for WordPress configuration (non-sensitive only)
 ENV WORDPRESS_DB_HOST=mariadb
 ENV WORDPRESS_DB_NAME=wordpress
-ENV WORDPRESS_URL=http://localhost
+ENV WORDPRESS_URL=https://${LOGIN}.42.fr
 ENV WORDPRESS_TITLE="My WordPress Site"
 ENV WORDPRESS_ADMIN_EMAIL=admin@example.com
 ENV WORDPRESS_THEME=""
