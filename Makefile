@@ -27,6 +27,12 @@ vm-download-full:
 	@mkdir -p /goinfre/niida/iso
 	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-DVD-1.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/debian-12.11.0-amd64-DVD-1.iso"
 
+vm-guest-additions-download:
+	@echo "Downloading VirtualBox Guest Additions ISO..."
+	@mkdir -p /goinfre/niida/iso
+	@VBOX_VERSION=$$(VBoxManage --version | cut -d 'r' -f1) && \
+	curl -L -o /goinfre/niida/iso/VBoxGuestAdditions.iso "https://download.virtualbox.org/virtualbox/$$VBOX_VERSION/VBoxGuestAdditions_$$VBOX_VERSION.iso"
+
 vm-init:
 	@echo "Creating VM..."
 	@mkdir -p /goinfre/niida/vm
@@ -49,6 +55,8 @@ vm-config:
 	VBoxManage modifyvm "Inception" --nic2 hostonly --hostonlyadapter2 vboxnet0
 	@mkdir -p "/goinfre/niida/42share"
 	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
+	@echo "Attaching Guest Additions ISO..."
+	VBoxManage storageattach "Inception" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "/goinfre/niida/iso/VBoxGuestAdditions.iso"
 	@echo "Copying preseed file to shared folder..."
 	@mkdir -p /goinfre/niida/42share
 	cp preseed.cfg /goinfre/niida/42share/
@@ -65,7 +73,7 @@ vm-boot:
 	@echo "Default credentials: root/root, user/user"
 	@echo "Stop preseed server with: make vm-stop-preseed"
 
-vm-create: vm-init vm-storage vm-network-setup vm-config vm-boot
+vm-create: vm-init vm-storage vm-network-setup vm-guest-additions-download vm-config vm-boot
 
 vm-stop-preseed:
 	@if [ -f /tmp/preseed-server.pid ]; then \
@@ -159,4 +167,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
+.PHONY: all up down build clean fclean re hosts logs vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-setup-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
