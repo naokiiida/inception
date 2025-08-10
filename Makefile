@@ -1,8 +1,57 @@
 NAME = inception
 LOGIN ?= $(shell whoami)
-COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
+
+# Set USE_VM=1 to run Docker commands in VM via SSH, or USE_VM=0 for local execution
+# Default is VM mode (USE_VM=1)
+#
+# Examples:
+#   make up                    # Run in VM (default)
+#   USE_VM=0 make up          # Run locally on host
+#   USE_VM=1 make up          # Run in VM via SSH
+USE_VM ?= 1
+
+ifeq ($(USE_VM),1)
+    DOCKER_CMD = ssh -p 2222 user@localhost
+    COMPOSE = $(DOCKER_CMD) "cd /home/user/inception && LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
+    DOCKER_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker exec"
+    DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
+else
+    COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
+    DOCKER_EXEC = docker exec
+    DOCKER_SYSTEM = docker system
+endif
 
 all: up
+
+help:
+	@echo "Inception Docker Project"
+	@echo ""
+	@echo "Environment Variables:"
+	@echo "  USE_VM=1    Run Docker commands in VM via SSH (default)"
+	@echo "  USE_VM=0    Run Docker commands locally on host"
+	@echo "  LOGIN       Your login name (default: current user)"
+	@echo ""
+	@echo "Main targets:"
+	@echo "  up          Start all services"
+	@echo "  down        Stop all services"
+	@echo "  build       Build all images"
+	@echo "  clean       Clean up containers and images"
+	@echo "  logs        Show container logs"
+	@echo ""
+	@echo "Testing targets:"
+	@echo "  test-nginx-internal      Test nginx from inside container"
+	@echo "  test-nginx-host          Test nginx from host system"
+	@echo ""
+	@echo "VM management:"
+	@echo "  vm-start      Start VM (headless)"
+	@echo "  vm-start-gui  Start VM (with GUI)"
+	@echo "  vm-stop       Stop VM"
+	@echo "  vm-status     Show VM status"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make up                   # Start in VM (default)"
+	@echo "  USE_VM=0 make up         # Start locally"
+	@echo "  USE_VM=0 make logs       # View logs locally"
 
 up: vm-start-gui ssl-setup
 	$(COMPOSE) up -d
@@ -167,11 +216,19 @@ logs:
 
 test-nginx-internal:
 	@echo "Testing nginx server access from inside container (skip cert verification)..."
-	docker exec $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost
+ifeq ($(USE_VM),1)
+	$(DOCKER_EXEC) \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost"
+else
+	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost
+endif
 
 test-nginx-internal-ssl:
 	@echo "Testing nginx server access from inside container (with SSL verification)..."
-	docker exec $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
+ifeq ($(USE_VM),1)
+	$(DOCKER_EXEC) \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost"
+else
+	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
+endif
 
 test-nginx-host:
 	@echo "Testing nginx server access from host system (skip cert verification)..."
@@ -202,7 +259,7 @@ test-nginx-host-header-ssl:
 	fi
 
 clean: down
-	docker system prune -f
+	$(DOCKER_SYSTEM) prune -f
 
 fclean: clean
 	rm -rf ~/data/wordpress_db
@@ -210,4 +267,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
+.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
