@@ -10,8 +10,51 @@ LOGIN ?= $(shell whoami)
 #   USE_VM=1 make up          # Run in VM via SSH
 USE_VM ?= 1
 
+# Path Configuration
+GOINFRE_BASE ?= /goinfre/niida
+ISO_DIR ?= $(GOINFRE_BASE)/iso
+VM_DIR ?= $(GOINFRE_BASE)/vm
+SHARE_DIR ?= $(GOINFRE_BASE)/42share
+DATA_DIR ?= ~/data
+NGINX_SSL_DIR ?= $(DATA_DIR)/nginx_ssl
+WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
+WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
+
+# Debian Configuration
+DEBIAN_VERSION ?= 12.11.0
+DEBIAN_ARCH ?= amd64
+DEBIAN_ISO_TYPE ?= netinst
+DEBIAN_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-$(DEBIAN_ISO_TYPE).iso
+DEBIAN_ISO_PATH = $(ISO_DIR)/$(DEBIAN_ISO_NAME)
+DEBIAN_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-cd/$(DEBIAN_ISO_NAME)
+
+# Debian Full ISO Configuration
+DEBIAN_FULL_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-DVD-1.iso
+DEBIAN_FULL_ISO_PATH = $(ISO_DIR)/$(DEBIAN_FULL_ISO_NAME)
+DEBIAN_FULL_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-dvd/$(DEBIAN_FULL_ISO_NAME)
+
+# VirtualBox Configuration
+VM_NAME ?= Inception
+VM_OSTYPE ?= Debian_64
+VM_MEMORY ?= 2048
+VM_VRAM ?= 128
+VM_CPUS ?= 2
+VM_DISK_SIZE ?= 20480
+VM_DISK_PATH = $(VM_DIR)/$(VM_NAME)/$(VM_NAME).vdi
+VBOX_GUEST_ADDITIONS_ISO = $(ISO_DIR)/VBoxGuestAdditions.iso
+
+# Port Forwarding Configuration
+SSH_PORT ?= 2222
+HTTP_PORT ?= 8080
+HTTPS_PORT ?= 8443
+
+# Network Configuration
+PRESEED_SERVER_PORT ?= 8000
+PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
+PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
+
 ifeq ($(USE_VM),1)
-    DOCKER_CMD = ssh -p 2222 user@localhost
+    DOCKER_CMD = ssh -p $(SSH_PORT) user@localhost
     COMPOSE = $(DOCKER_CMD) "cd /home/user/inception && LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
     DOCKER_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker exec"
     DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
@@ -69,12 +112,12 @@ endif
 ssl-setup:
 ifeq ($(USE_VM),1)
 	@echo "Setting up SSL certificates for VM host system access..."
-	@mkdir -p ~/data/nginx_ssl
-	@echo "SSL certificates will be available in ~/data/nginx_ssl/ after container start"
+	@mkdir -p $(NGINX_SSL_DIR)
+	@echo "SSL certificates will be available in $(NGINX_SSL_DIR)/ after container start"
 else
 	@echo "Setting up SSL certificates for local host system access..."
-	@mkdir -p ~/data/nginx_ssl
-	@echo "SSL certificates will be available in ~/data/nginx_ssl/ after container start"
+	@mkdir -p $(NGINX_SSL_DIR)
+	@echo "SSL certificates will be available in $(NGINX_SSL_DIR)/ after container start"
 	@echo "Note: Running in local mode - containers will bind directly to host ports"
 endif
 
@@ -94,10 +137,10 @@ endif
 	@echo "  Add mapping: 127.0.0.1 -> $(LOGIN).42.fr"
 	@echo ""
 	@echo "Option 2: Import SSL Certificate (recommended)"
-	@echo "  1. After 'make up', certificate will be at: ~/data/nginx_ssl/cert.pem"
+	@echo "  1. After 'make up', certificate will be at: $(NGINX_SSL_DIR)/cert.pem"
 	@echo "  2. Chrome: Settings -> Privacy & Security -> Security -> Manage Certificates -> Authorities -> Import"
 	@echo "  3. Firefox: Settings -> Privacy & Security -> Certificates -> View Certificates -> Authorities -> Import"
-	@echo "  4. Import ~/data/nginx_ssl/cert.pem"
+	@echo "  4. Import $(NGINX_SSL_DIR)/cert.pem"
 	@echo ""
 	@echo "Option 3: Firefox about:config (Advanced)"
 	@echo "  1. Type about:config in address bar"
@@ -110,123 +153,123 @@ endif
 
 vm-download:
 	@echo "Downloading Debian ISO..."
-	@mkdir -p /goinfre/niida/iso
-	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-netinst.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.11.0-amd64-netinst.iso"
+	@mkdir -p $(ISO_DIR)
+	curl -L -o $(DEBIAN_ISO_PATH) "$(DEBIAN_ISO_URL)"
 
 vm-download-full:
 	@echo "Downloading full Debian ISO (offline installation)..."
-	@mkdir -p /goinfre/niida/iso
-	curl -L -o /goinfre/niida/iso/debian-12.11.0-amd64-DVD-1.iso "https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/debian-12.11.0-amd64-DVD-1.iso"
+	@mkdir -p $(ISO_DIR)
+	curl -L -o $(DEBIAN_FULL_ISO_PATH) "$(DEBIAN_FULL_ISO_URL)"
 
 vm-guest-additions-download:
 	@echo "Downloading VirtualBox Guest Additions ISO..."
-	@mkdir -p /goinfre/niida/iso
+	@mkdir -p $(ISO_DIR)
 	@VBOX_VERSION=$$(VBoxManage --version | cut -d 'r' -f1) && \
-	curl -L -o /goinfre/niida/iso/VBoxGuestAdditions.iso "https://download.virtualbox.org/virtualbox/$$VBOX_VERSION/VBoxGuestAdditions_$$VBOX_VERSION.iso"
+	curl -L -o $(VBOX_GUEST_ADDITIONS_ISO) "https://download.virtualbox.org/virtualbox/$$VBOX_VERSION/VBoxGuestAdditions_$$VBOX_VERSION.iso"
 
 vm-init:
 	@echo "Creating VM..."
-	@mkdir -p /goinfre/niida/vm
-	VBoxManage createvm --name "Inception" --ostype "Debian_64" --register --basefolder "/goinfre/niida/vm"
-	VBoxManage modifyvm "Inception" --memory 2048 --vram 128
-	VBoxManage modifyvm "Inception" --cpus 2
+	@mkdir -p $(VM_DIR)
+	VBoxManage createvm --name "$(VM_NAME)" --ostype "$(VM_OSTYPE)" --register --basefolder "$(VM_DIR)"
+	VBoxManage modifyvm "$(VM_NAME)" --memory $(VM_MEMORY) --vram $(VM_VRAM)
+	VBoxManage modifyvm "$(VM_NAME)" --cpus $(VM_CPUS)
 
 vm-storage:
 	@echo "Setting up storage..."
-	VBoxManage createhd --filename "/goinfre/niida/vm/Inception/Inception.vdi" --size 20480 --format VDI
-	VBoxManage storagectl "Inception" --name "SATA Controller" --add sata --controller IntelAHCI
-	VBoxManage storageattach "Inception" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "/goinfre/niida/vm/Inception/Inception.vdi"
-	VBoxManage storagectl "Inception" --name "IDE Controller" --add ide --controller PIIX4
-	VBoxManage storageattach "Inception" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "/goinfre/niida/iso/debian-12.11.0-amd64-netinst.iso"
+	VBoxManage createhd --filename "$(VM_DISK_PATH)" --size $(VM_DISK_SIZE) --format VDI
+	VBoxManage storagectl "$(VM_NAME)" --name "SATA Controller" --add sata --controller IntelAHCI
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$(VM_DISK_PATH)"
+	VBoxManage storagectl "$(VM_NAME)" --name "IDE Controller" --add ide --controller PIIX4
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "$(DEBIAN_ISO_PATH)"
 
 vm-config:
 	@echo "Configuring VM settings..."
-	VBoxManage modifyvm "Inception" --boot1 dvd --boot2 disk --boot3 none --boot4 none
-	VBoxManage modifyvm "Inception" --audio-driver none
-	@mkdir -p "/goinfre/niida/42share"
-	VBoxManage sharedfolder add "Inception" --name "42share" --hostpath "/goinfre/niida/42share/" --automount
+	VBoxManage modifyvm "$(VM_NAME)" --boot1 dvd --boot2 disk --boot3 none --boot4 none
+	VBoxManage modifyvm "$(VM_NAME)" --audio-driver none
+	@mkdir -p "$(SHARE_DIR)"
+	VBoxManage sharedfolder add "$(VM_NAME)" --name "42share" --hostpath "$(SHARE_DIR)/" --automount
 	@echo "Attaching Guest Additions ISO..."
-	VBoxManage storageattach "Inception" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "/goinfre/niida/iso/VBoxGuestAdditions.iso"
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "$(VBOX_GUEST_ADDITIONS_ISO)"
 	@echo "Copying preseed file to shared folder..."
-	@mkdir -p /goinfre/niida/42share
-	cp preseed.cfg /goinfre/niida/42share/
+	@mkdir -p $(SHARE_DIR)
+	cp preseed.cfg $(SHARE_DIR)/
 
 vm-boot:
-	@echo "VM 'Inception' created successfully!"
+	@echo "VM '$(VM_NAME)' created successfully!"
 	@echo "Starting preseed server in background..."
-	nohup make vm-serve-preseed > /tmp/preseed-server.log 2>&1 & echo $$! > /tmp/preseed-server.pid
+	nohup make vm-serve-preseed > $(PRESEED_SERVER_LOG) 2>&1 & echo $$! > $(PRESEED_SERVER_PID)
 	@sleep 2
 	@echo "Starting VM for automated installation..."
 	make vm-start-gui
 	@echo ""
-	@echo "At boot menu, press TAB and add: auto url=http://10.0.2.2:8000/preseed.cfg"
+	@echo "At boot menu, press TAB and add: auto url=http://10.0.2.2:$(PRESEED_SERVER_PORT)/preseed.cfg"
 	@echo "Default credentials: root/root, user/user"
 	@echo "Stop preseed server with: make vm-stop-preseed"
 
 vm-create: vm-init vm-storage vm-network-setup vm-guest-additions-download vm-config vm-boot
 
 vm-stop-preseed:
-	@if [ -f /tmp/preseed-server.pid ]; then \
-		kill `cat /tmp/preseed-server.pid` 2>/dev/null || true; \
-		rm -f /tmp/preseed-server.pid /tmp/preseed-server.log; \
+	@if [ -f $(PRESEED_SERVER_PID) ]; then \
+		kill `cat $(PRESEED_SERVER_PID)` 2>/dev/null || true; \
+		rm -f $(PRESEED_SERVER_PID) $(PRESEED_SERVER_LOG); \
 		echo "Preseed server stopped"; \
 	else \
 		echo "Preseed server not running"; \
 	fi
 
 vm-serve-preseed:
-	@echo "Serving preseed file on http://0.0.0.0:8000"
-	@echo "VM will access it via http://10.0.2.2:8000"
+	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)"
+	@echo "VM will access it via http://10.0.2.2:$(PRESEED_SERVER_PORT)"
 	@echo "Stop with Ctrl+C after installation completes"
-	cd /goinfre/niida/42share && python3 -m http.server 8000
+	cd $(SHARE_DIR) && python3 -m http.server $(PRESEED_SERVER_PORT)
 
 vm-test-docker:
 	@echo "Testing Docker installation in VM..."
 	@echo "SSH to the VM and run:"
-	@echo "ssh -p 2222 user@localhost"
-	ssh -p 2222 user@localhost "docker --version"
-	ssh -p 2222 user@localhost "docker compose version"
+	@echo "ssh -p $(SSH_PORT) user@localhost"
+	ssh -p $(SSH_PORT) user@localhost "docker --version"
+	ssh -p $(SSH_PORT) user@localhost "docker compose version"
 
 vm-start:
-	VBoxManage startvm "Inception" --type headless
+	VBoxManage startvm "$(VM_NAME)" --type headless
 
 vm-start-gui:
-	VBoxManage startvm "Inception"
+	VBoxManage startvm "$(VM_NAME)"
 
 vm-stop:
-	VBoxManage controlvm "Inception" poweroff
+	VBoxManage controlvm "$(VM_NAME)" poweroff
 
 vm-pause:
-	VBoxManage controlvm "Inception" pause
+	VBoxManage controlvm "$(VM_NAME)" pause
 
 vm-resume:
-	VBoxManage controlvm "Inception" resume
+	VBoxManage controlvm "$(VM_NAME)" resume
 
 vm-status:
-	VBoxManage showvminfo "Inception" --machinereadable | grep VMState
+	VBoxManage showvminfo "$(VM_NAME)" --machinereadable | grep VMState
 
 vm-network-setup:
 	@echo "Setting up VirtualBox NAT networking with port forwarding..."
-	VBoxManage modifyvm "Inception" --nic1 nat
-	VBoxManage modifyvm "Inception" --natpf1 "ssh,tcp,,2222,,22"
-	VBoxManage modifyvm "Inception" --natpf1 "http,tcp,,8080,,80"
-	VBoxManage modifyvm "Inception" --natpf1 "https,tcp,,8443,,443"
+	VBoxManage modifyvm "$(VM_NAME)" --nic1 nat
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "ssh,tcp,,$(SSH_PORT),,22"
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "http,tcp,,$(HTTP_PORT),,80"
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "https,tcp,,$(HTTPS_PORT),,443"
 	@echo "Network setup complete:"
 	@echo "  - VM gets internet via NAT"
-	@echo "  - SSH: localhost:2222"
-	@echo "  - HTTP: localhost:8080"
-	@echo "  - HTTPS: localhost:8443"
+	@echo "  - SSH: localhost:$(SSH_PORT)"
+	@echo "  - HTTP: localhost:$(HTTP_PORT)"
+	@echo "  - HTTPS: localhost:$(HTTPS_PORT)"
 
 vm-network-bridged:
 	@echo "Configuring VM for bridged networking..."
-	VBoxManage modifyvm "Inception" --nic1 bridged --bridgeadapter1 "en0"
+	VBoxManage modifyvm "$(VM_NAME)" --nic1 bridged --bridgeadapter1 "en0"
 	@echo "Bridged networking configured"
 
 vm-network-info:
 	@echo "VM network configuration:"
-	VBoxManage showvminfo "Inception" | grep -E "(NIC|MAC|Cable|Line|Rule)"
+	VBoxManage showvminfo "$(VM_NAME)" | grep -E "(NIC|MAC|Cable|Line|Rule)"
 	@echo "\nPort forwarding rules:"
-	VBoxManage showvminfo "Inception" | grep "NIC 1 Rule"
+	VBoxManage showvminfo "$(VM_NAME)" | grep "NIC 1 Rule"
 
 down:
 	$(COMPOSE) down
@@ -270,8 +313,8 @@ ifeq ($(USE_VM),1)
 else
 	@echo "Using domain: $(LOGIN).42.fr (direct local access)"
 endif
-	@if [ -f ~/data/nginx_ssl/cert.pem ]; then \
-		curl --cacert ~/data/nginx_ssl/cert.pem -I https://$(LOGIN).42.fr; \
+	@if [ -f $(NGINX_SSL_DIR)/cert.pem ]; then \
+		curl --cacert $(NGINX_SSL_DIR)/cert.pem -I https://$(LOGIN).42.fr; \
 	else \
 		echo "SSL certificate not found. Run 'make up' first to generate certificates."; \
 	fi
@@ -284,8 +327,8 @@ test-nginx-host-header:
 test-nginx-host-header-ssl:
 	@echo "Testing nginx server using Host header with SSL verification..."
 	@echo "Using domain: $(LOGIN).42.fr"
-	@if [ -f ~/data/nginx_ssl/cert.pem ]; then \
-		curl --cacert ~/data/nginx_ssl/cert.pem -H "Host: $(LOGIN).42.fr" -I https://127.0.0.1; \
+	@if [ -f $(NGINX_SSL_DIR)/cert.pem ]; then \
+		curl --cacert $(NGINX_SSL_DIR)/cert.pem -H "Host: $(LOGIN).42.fr" -I https://127.0.0.1; \
 	else \
 		echo "SSL certificate not found. Run 'make up' first to generate certificates."; \
 	fi
@@ -294,8 +337,8 @@ clean: down
 	$(DOCKER_SYSTEM) prune -f
 
 fclean: clean
-	rm -rf ~/data/wordpress_db
-	rm -rf ~/data/wordpress_files
+	rm -rf $(WORDPRESS_DB_DIR)
+	rm -rf $(WORDPRESS_FILES_DIR)
 
 re: fclean all
 
