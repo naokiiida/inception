@@ -28,7 +28,11 @@ help:
 	@echo ""
 	@echo "Environment Variables:"
 	@echo "  USE_VM=1    Run Docker commands in VM via SSH (default)"
+	@echo "              - Starts VM automatically with 'make up'"
+	@echo "              - Uses SSH to execute Docker commands in VM"
 	@echo "  USE_VM=0    Run Docker commands locally on host"
+	@echo "              - No VM operations (VirtualBox not used)"
+	@echo "              - Direct Docker execution on host system"
 	@echo "  LOGIN       Your login name (default: current user)"
 	@echo ""
 	@echo "Main targets:"
@@ -50,20 +54,39 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make up                   # Start in VM (default)"
-	@echo "  USE_VM=0 make up         # Start locally"
+	@echo "  USE_VM=0 make up         # Start locally (no VM operations)"
 	@echo "  USE_VM=0 make logs       # View logs locally"
+	@echo "  USE_VM=1 make up         # Explicitly start in VM"
 
+ifeq ($(USE_VM),1)
 up: vm-start-gui ssl-setup
 	$(COMPOSE) up -d
+else
+up: ssl-setup
+	$(COMPOSE) up -d
+endif
 
 ssl-setup:
-	@echo "Setting up SSL certificates for host system access..."
+ifeq ($(USE_VM),1)
+	@echo "Setting up SSL certificates for VM host system access..."
 	@mkdir -p ~/data/nginx_ssl
 	@echo "SSL certificates will be available in ~/data/nginx_ssl/ after container start"
+else
+	@echo "Setting up SSL certificates for local host system access..."
+	@mkdir -p ~/data/nginx_ssl
+	@echo "SSL certificates will be available in ~/data/nginx_ssl/ after container start"
+	@echo "Note: Running in local mode - containers will bind directly to host ports"
+endif
 
 browser-setup:
 	@echo ""
-	@echo "=== Browser Configuration for $(LOGIN).42.fr (No sudo required) ==="
+ifeq ($(USE_VM),1)
+	@echo "=== Browser Configuration for $(LOGIN).42.fr (VM Mode) ==="
+	@echo "Note: VM forwards ports 443->8443, 80->8080 to host"
+else
+	@echo "=== Browser Configuration for $(LOGIN).42.fr (Local Mode) ==="
+	@echo "Note: Containers bind directly to host ports 443 and 80"
+endif
 	@echo ""
 	@echo "Option 1: Browser Extensions"
 	@echo "  Chrome: Install 'Host Admin App' extension"
@@ -232,12 +255,21 @@ endif
 
 test-nginx-host:
 	@echo "Testing nginx server access from host system (skip cert verification)..."
-	@echo "Using domain: $(LOGIN).42.fr"
+ifeq ($(USE_VM),1)
+	@echo "Using domain: $(LOGIN).42.fr (via VM port forwarding)"
 	curl -k -I https://$(LOGIN).42.fr
+else
+	@echo "Using domain: $(LOGIN).42.fr (direct local access)"
+	curl -k -I https://$(LOGIN).42.fr
+endif
 
 test-nginx-host-ssl:
 	@echo "Testing nginx server access from host system (with SSL verification)..."
-	@echo "Using domain: $(LOGIN).42.fr"
+ifeq ($(USE_VM),1)
+	@echo "Using domain: $(LOGIN).42.fr (via VM port forwarding)"
+else
+	@echo "Using domain: $(LOGIN).42.fr (direct local access)"
+endif
 	@if [ -f ~/data/nginx_ssl/cert.pem ]; then \
 		curl --cacert ~/data/nginx_ssl/cert.pem -I https://$(LOGIN).42.fr; \
 	else \
