@@ -9,6 +9,7 @@ LOGIN ?= $(shell whoami)
 #   USE_VM=0 make up          # Run locally on host
 #   USE_VM=1 make up          # Run in VM via SSH
 USE_VM ?= 1
+USE_NETINST ?= 0
 
 # Path Configuration
 GOINFRE_BASE ?= /goinfre/niida
@@ -21,17 +22,22 @@ WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
 WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
 
 # Debian Configuration
-DEBIAN_VERSION ?= 12.11.0
+DEBIAN_VERSION ?= 13.1.0
 DEBIAN_ARCH ?= amd64
 DEBIAN_ISO_TYPE ?= netinst
 DEBIAN_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-$(DEBIAN_ISO_TYPE).iso
-DEBIAN_ISO_PATH = $(ISO_DIR)/$(DEBIAN_ISO_NAME)
 DEBIAN_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-cd/$(DEBIAN_ISO_NAME)
 
 # Debian Full ISO Configuration
 DEBIAN_FULL_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-DVD-1.iso
 DEBIAN_FULL_ISO_PATH = $(ISO_DIR)/$(DEBIAN_FULL_ISO_NAME)
 DEBIAN_FULL_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-dvd/$(DEBIAN_FULL_ISO_NAME)
+
+ifeq ($(USE_NETINST),1)
+	DEBIAN_ISO_PATH = $(ISO_DIR)/$(DEBIAN_ISO_NAME)
+else
+	DEBIAN_ISO_PATH = $(DEBIAN_FULL_ISO_PATH)
+endif
 
 # VirtualBox Configuration
 VM_NAME ?= Inception
@@ -182,7 +188,12 @@ vm-storage:
 	VBoxManage storagectl "$(VM_NAME)" --name "IDE Controller" --add ide --controller PIIX4
 	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "$(DEBIAN_ISO_PATH)"
 
-vm-config:
+vm-preseed-cp:
+	@echo "Copying preseed file to shared folder..."
+	@mkdir -p $(SHARE_DIR)
+	cp preseed.cfg $(SHARE_DIR)/
+	
+vm-config: vm-preseed-cp
 	@echo "Configuring VM settings..."
 	VBoxManage modifyvm "$(VM_NAME)" --boot1 dvd --boot2 disk --boot3 none --boot4 none
 	VBoxManage modifyvm "$(VM_NAME)" --audio-driver none
@@ -190,9 +201,6 @@ vm-config:
 	VBoxManage sharedfolder add "$(VM_NAME)" --name "42share" --hostpath "$(SHARE_DIR)/" --automount
 	@echo "Attaching Guest Additions ISO..."
 	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "$(VBOX_GUEST_ADDITIONS_ISO)"
-	@echo "Copying preseed file to shared folder..."
-	@mkdir -p $(SHARE_DIR)
-	cp preseed.cfg $(SHARE_DIR)/
 
 vm-boot:
 	@echo "VM '$(VM_NAME)' created successfully!"
@@ -217,7 +225,7 @@ vm-stop-preseed:
 		echo "Preseed server not running"; \
 	fi
 
-vm-serve-preseed:
+vm-serve-preseed: vm-preseed-cp
 	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)"
 	@echo "VM will access it via http://10.0.2.2:$(PRESEED_SERVER_PORT)"
 	@echo "Stop with Ctrl+C after installation completes"
