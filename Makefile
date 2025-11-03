@@ -108,7 +108,7 @@ help:
 	@echo "  USE_VM=1 make up         # Explicitly start in VM"
 
 ifeq ($(USE_VM),1)
-up: vm-start-gui ssl-setup
+up: vm-start-gui vm-sync-project ssl-setup
 	$(COMPOSE) up -d
 else
 up: ssl-setup
@@ -279,6 +279,38 @@ vm-network-info:
 	@echo "\nPort forwarding rules:"
 	VBoxManage showvminfo "$(VM_NAME)" | grep "NIC 1 Rule"
 
+vm-wait-ssh:
+	@echo "Waiting for VM SSH to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if ssh -p $(SSH_PORT) -o ConnectTimeout=5 -o StrictHostKeyChecking=no user@localhost "echo SSH ready" 2>/dev/null; then \
+			echo "SSH connection established"; \
+			exit 0; \
+		fi; \
+		echo "Attempt $$i/10 failed, waiting 3 seconds..."; \
+		sleep 3; \
+	done; \
+	echo "ERROR: Could not establish SSH connection after 10 attempts"; \
+	exit 1
+
+vm-sync-project: vm-wait-ssh
+	@echo "Syncing project files to VM..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no user@localhost "mkdir -p /home/user"
+	@rsync -avz --delete \
+		--exclude='.git/' \
+		--exclude='data/' \
+		--exclude='*.vdi' \
+		--exclude='*.iso' \
+		--exclude='.DS_Store' \
+		--exclude='__pycache__/' \
+		--exclude='*.pyc' \
+		-e "ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no" \
+		./ user@localhost:/home/user/inception/
+	@echo "Project files synced successfully"
+
+vm-resync:
+	@echo "Re-syncing project files to VM..."
+	@$(MAKE) vm-sync-project
+
 down:
 	$(COMPOSE) down
 
@@ -350,4 +382,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot
+.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-resync
