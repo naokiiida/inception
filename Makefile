@@ -16,7 +16,7 @@ GOINFRE_BASE ?= /goinfre/niida
 ISO_DIR ?= $(GOINFRE_BASE)/iso
 VM_DIR ?= $(GOINFRE_BASE)/vm
 SHARE_DIR ?= $(GOINFRE_BASE)/42share
-DATA_DIR ?= ~/data
+DATA_DIR ?= ./data
 NGINX_SSL_DIR ?= $(DATA_DIR)/nginx_ssl
 WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
 WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
@@ -62,10 +62,12 @@ PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
 ifeq ($(USE_VM),1)
     DOCKER_CMD = ssh -p $(SSH_PORT) user@localhost
     COMPOSE = $(DOCKER_CMD) "cd /home/user/inception && LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
+    COMPOSE_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker compose -f srcs/docker-compose.yml exec"
     DOCKER_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker exec"
     DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
 else
     COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
+    COMPOSE_EXEC = docker compose -f srcs/docker-compose.yml exec
     DOCKER_EXEC = docker exec
     DOCKER_SYSTEM = docker system
 endif
@@ -323,17 +325,17 @@ logs:
 test-nginx-internal:
 	@echo "Testing nginx server access from inside container (skip cert verification)..."
 ifeq ($(USE_VM),1)
-	$(DOCKER_CMD) "cd /home/user/inception && docker exec \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost"
+	$(COMPOSE_EXEC) nginx curl -k -I https://localhost"
 else
-	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost
+	$(COMPOSE_EXEC) nginx curl -k -I https://localhost
 endif
 
 test-nginx-internal-ssl:
 	@echo "Testing nginx server access from inside container (with SSL verification)..."
 ifeq ($(USE_VM),1)
-	$(DOCKER_CMD) "cd /home/user/inception && docker exec \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost"
+	$(COMPOSE_EXEC) nginx curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost"
 else
-	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
+	$(COMPOSE_EXEC) nginx curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
 endif
 
 test-nginx-host:
