@@ -323,7 +323,7 @@ logs:
 test-nginx-internal:
 	@echo "Testing nginx server access from inside container (skip cert verification)..."
 ifeq ($(USE_VM),1)
-	$(DOCKER_EXEC) \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost"
+	$(DOCKER_CMD) "cd /home/user/inception && docker exec \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost"
 else
 	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl -k -I https://localhost
 endif
@@ -331,7 +331,7 @@ endif
 test-nginx-internal-ssl:
 	@echo "Testing nginx server access from inside container (with SSL verification)..."
 ifeq ($(USE_VM),1)
-	$(DOCKER_EXEC) \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost"
+	$(DOCKER_CMD) "cd /home/user/inception && docker exec \$$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost"
 else
 	$(DOCKER_EXEC) $$(docker compose -f srcs/docker-compose.yml ps -q nginx) curl --cacert /etc/nginx/ssl/cert.pem -I https://localhost
 endif
