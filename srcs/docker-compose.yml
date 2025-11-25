@@ -6,7 +6,7 @@ services:
     ports:
       - "443:443"
     volumes:
-      - ../data/wordpress_files:/var/www/html
+      - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
       - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-cert.pem:/etc/nginx/ssl/cert.pem:ro
       - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-key.pem:/etc/nginx/ssl/key.pem:ro
     environment:
@@ -26,7 +26,7 @@ services:
       context: ./requirements/wordpress
       dockerfile: Dockerfile
     volumes:
-      - ../data/wordpress_files:/var/www/html
+      - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
     environment:
       - WORDPRESS_DB_HOST=mariadb
       - WORDPRESS_DB_NAME=${DB_NAME}
@@ -49,7 +49,7 @@ services:
       context: ./requirements/mariadb
       dockerfile: Dockerfile
     volumes:
-      - ../data/wordpress_db:/var/lib/mysql
+      - ${VOLUME_BASE}/data/wordpress_db:/var/lib/mysql
     environment:
       - MYSQL_DATABASE=${DB_NAME}
       - MYSQL_USER=${DB_USER}

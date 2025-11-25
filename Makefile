@@ -60,13 +60,15 @@ PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
 PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
 
 ifeq ($(USE_VM),1)
-    DOCKER_CMD = ssh -p $(SSH_PORT) user@localhost
-    COMPOSE = $(DOCKER_CMD) "cd /home/user/inception && LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
-    COMPOSE_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker compose -f srcs/docker-compose.yml exec"
-    DOCKER_EXEC = $(DOCKER_CMD) "cd /home/user/inception && docker exec"
+    DOCKER_CMD = ssh -p $(SSH_PORT) $(LOGIN)@localhost
+    # In VM mode, volumes are at /home/<login>/data to match project requirements
+    COMPOSE = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && LOGIN=$(LOGIN) VOLUME_BASE=/home/$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
+    COMPOSE_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker compose -f srcs/docker-compose.yml exec"
+    DOCKER_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker exec"
     DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
 else
-    COMPOSE = LOGIN=$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
+    # In local mode, volumes are at /home/<login>/data
+    COMPOSE = LOGIN=$(LOGIN) VOLUME_BASE=/home/$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
     COMPOSE_EXEC = docker compose -f srcs/docker-compose.yml exec
     DOCKER_EXEC = docker exec
     DOCKER_SYSTEM = docker system
@@ -110,7 +112,7 @@ help:
 	@echo "  USE_VM=1 make up         # Explicitly start in VM"
 
 ifeq ($(USE_VM),1)
-up: vm-start-gui vm-sync-project ssl-setup
+up: vm-start-gui vm-sync-project vm-data-setup ssl-setup
 	$(COMPOSE) up -d
 else
 up: ssl-setup
@@ -193,7 +195,14 @@ vm-storage:
 vm-preseed-cp:
 	@echo "Copying preseed file to shared folder..."
 	@mkdir -p $(SHARE_DIR)
-	cp preseed.cfg $(SHARE_DIR)/
+	sed -e 's/passwd\/username string user/passwd\/username string $(LOGIN)/g' \
+	    -e 's/passwd\/user-fullname string User/passwd\/user-fullname string $(LOGIN)/g' \
+	    -e 's/passwd\/user-password password user/passwd\/user-password password $(LOGIN)/g' \
+	    -e 's/passwd\/user-password-again password user/passwd\/user-password-again password $(LOGIN)/g' \
+	    -e 's/usermod -aG docker user/usermod -aG docker $(LOGIN)/g' \
+	    -e 's/\/home\/user/\/home\/$(LOGIN)/g' \
+	    -e 's/chown -R user:user/chown -R $(LOGIN):$(LOGIN)/g' \
+	    preseed.cfg > $(SHARE_DIR)/preseed.cfg
 	
 vm-config: vm-preseed-cp
 	@echo "Configuring VM settings..."
@@ -213,7 +222,7 @@ vm-boot:
 	make vm-start-gui
 	@echo ""
 	@echo "At boot menu, press TAB and add: auto url=http://10.0.2.2:$(PRESEED_SERVER_PORT)/preseed.cfg"
-	@echo "Default credentials: root/root, user/user"
+	@echo "Default credentials: root/root, $(LOGIN)/$(LOGIN)"
 	@echo "Stop preseed server with: make vm-stop-preseed"
 
 vm-create: vm-init vm-storage vm-network-setup vm-guest-additions-download vm-config vm-boot
@@ -236,9 +245,9 @@ vm-serve-preseed: vm-preseed-cp
 vm-test-docker:
 	@echo "Testing Docker installation in VM..."
 	@echo "SSH to the VM and run:"
-	@echo "ssh -p $(SSH_PORT) user@localhost"
-	ssh -p $(SSH_PORT) user@localhost "docker --version"
-	ssh -p $(SSH_PORT) user@localhost "docker compose version"
+	@echo "ssh -p $(SSH_PORT) $(LOGIN)@localhost"
+	ssh -p $(SSH_PORT) $(LOGIN)@localhost "docker --version"
+	ssh -p $(SSH_PORT) $(LOGIN)@localhost "docker compose version"
 
 vm-start:
 	VBoxManage startvm "$(VM_NAME)" --type headless
@@ -284,7 +293,7 @@ vm-network-info:
 vm-wait-ssh:
 	@echo "Waiting for VM SSH to be ready..."
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if ssh -p $(SSH_PORT) -o ConnectTimeout=5 -o StrictHostKeyChecking=no user@localhost "echo SSH ready" 2>/dev/null; then \
+		if ssh -p $(SSH_PORT) -o ConnectTimeout=5 -o StrictHostKeyChecking=no $(LOGIN)@localhost "echo SSH ready" 2>/dev/null; then \
 			echo "SSH connection established"; \
 			exit 0; \
 		fi; \
@@ -296,7 +305,7 @@ vm-wait-ssh:
 
 vm-sync-project: vm-wait-ssh
 	@echo "Syncing project files to VM..."
-	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no user@localhost "mkdir -p /home/user"
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "mkdir -p /home/$(LOGIN)"
 	@rsync -avz --delete \
 		--exclude='.git/' \
 		--exclude='data/' \
@@ -306,8 +315,16 @@ vm-sync-project: vm-wait-ssh
 		--exclude='__pycache__/' \
 		--exclude='*.pyc' \
 		-e "ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no" \
-		./ user@localhost:/home/user/inception/
+		./ $(LOGIN)@localhost:/home/$(LOGIN)/inception/
 	@echo "Project files synced successfully"
+
+vm-data-setup: vm-wait-ssh
+	@echo "Setting up data directories in VM at /home/$(LOGIN)/data..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
+		sudo mkdir -p /home/$(LOGIN)/data/wordpress_db && \
+		sudo mkdir -p /home/$(LOGIN)/data/wordpress_files && \
+		sudo chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data && \
+		echo 'Data directories created successfully at /home/$(LOGIN)/data'"
 
 vm-resync:
 	@echo "Re-syncing project files to VM..."
@@ -378,10 +395,20 @@ test-nginx-host-header-ssl:
 clean: down
 	$(DOCKER_SYSTEM) prune -f
 
+ifeq ($(USE_VM),1)
 fclean: clean
+	@echo "Cleaning data directories in VM at /home/$(LOGIN)/data..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
+		sudo rm -rf /home/$(LOGIN)/data/wordpress_db && \
+		sudo rm -rf /home/$(LOGIN)/data/wordpress_files && \
+		echo 'Data directories cleaned at /home/$(LOGIN)/data'"
+else
+fclean: clean
+	@echo "Cleaning local data directories..."
 	rm -rf $(WORDPRESS_DB_DIR)
 	rm -rf $(WORDPRESS_FILES_DIR)
+endif
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-resync
+.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-data-setup vm-resync
