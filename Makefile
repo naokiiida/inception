@@ -58,6 +58,9 @@ HTTPS_PORT ?= 8443
 PRESEED_SERVER_PORT ?= 8000
 PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
 PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
+# Auto-detect host IP from default route interface (e.g., 10.11.7.2 from enp4s0f0)
+# Override with: PRESEED_SERVER_IP=x.x.x.x make vm-boot
+PRESEED_SERVER_IP ?= $(shell ip route get 1.1.1.1 | grep -oP 'src \K\S+')
 
 ifeq ($(USE_VM),1)
     DOCKER_CMD = ssh -p $(SSH_PORT) $(LOGIN)@localhost
@@ -221,7 +224,7 @@ vm-boot:
 	@echo "Starting VM for automated installation..."
 	make vm-start-gui
 	@echo ""
-	@echo "At boot menu, press TAB and add: auto url=http://10.0.2.2:$(PRESEED_SERVER_PORT)/preseed.cfg"
+	@echo "At boot menu, press TAB and add: auto url=http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)/preseed.cfg"
 	@echo "Default credentials: root/root, $(LOGIN)/$(LOGIN)"
 	@echo "Stop preseed server with: make vm-stop-preseed"
 
@@ -238,7 +241,7 @@ vm-stop-preseed:
 
 vm-serve-preseed: vm-preseed-cp
 	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)"
-	@echo "VM will access it via http://10.0.2.2:$(PRESEED_SERVER_PORT)"
+	@echo "VM will access it via http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)"
 	@echo "Stop with Ctrl+C after installation completes"
 	cd $(SHARE_DIR) && python3 -m http.server $(PRESEED_SERVER_PORT)
 
