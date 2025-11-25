@@ -61,6 +61,17 @@ define('WP_DEBUG', false);" wp-config.php
         # Update permalink structure
         wp rewrite structure '/%postname%/' --allow-root
         wp rewrite flush --hard --allow-root
+    else
+        # WordPress is already installed, update the site URL if needed
+        CURRENT_URL=$(wp option get siteurl --allow-root)
+        EXPECTED_URL="${WORDPRESS_URL:-https://${LOGIN}.42.fr}"
+        
+        if [ "$CURRENT_URL" != "$EXPECTED_URL" ]; then
+            echo "Updating WordPress site URL from $CURRENT_URL to $EXPECTED_URL"
+            wp option update siteurl "$EXPECTED_URL" --allow-root
+            wp option update home "$EXPECTED_URL" --allow-root
+            wp cache flush --allow-root
+        fi
     fi
 
     echo "WordPress setup complete!"

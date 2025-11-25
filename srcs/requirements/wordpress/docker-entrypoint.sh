@@ -43,6 +43,19 @@ if [ ! -f /var/www/html/wp-config.php ]; then
     /bin/bash /conf/wp-setup.sh
 else
     echo "WordPress is already installed."
+    # Update WordPress URL if it doesn't match the expected URL
+    if [ -f /var/www/html/wp-config.php ]; then
+        CURRENT_URL=$(cd /var/www/html && wp option get siteurl --allow-root 2>/dev/null | grep -v 'PHP Warning')
+        EXPECTED_URL="${WORDPRESS_URL:-https://${LOGIN}.42.fr}"
+        
+        if [ "$CURRENT_URL" != "$EXPECTED_URL" ]; then
+            echo "Updating WordPress site URL from $CURRENT_URL to $EXPECTED_URL"
+            cd /var/www/html
+            wp option update siteurl "$EXPECTED_URL" --allow-root 2>/dev/null
+            wp option update home "$EXPECTED_URL" --allow-root 2>/dev/null
+            wp cache flush --allow-root 2>/dev/null
+        fi
+    fi
 fi
 
         

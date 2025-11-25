@@ -1,0 +1,25 @@
+# Certificate Authority Private Key (NEVER COMMIT THIS!)
+ca-key.pem
+*.key
+*.pem
+
+# Certificate Database Files
+index.txt*
+serial*
+crlnumber*
+
+# Generated Directories
+private/
+newcerts/
+crl/
+
+# Certificate files (optional - you may want to commit public certs)
+# Uncomment if you want to keep certs out of git
+# certs/
+# *.crt
+# *.csr
+
+# Temporary files
+*.tmp
+*.bak
+.rand

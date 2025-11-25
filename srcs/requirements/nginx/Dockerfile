@@ -21,12 +21,14 @@ RUN rm -f /etc/nginx/conf.d/default.conf \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
+# Generate DH parameters for Perfect Forward Secrecy
+RUN openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+
 # Copy configuration files
 COPY ./conf/nginx.conf /etc/nginx/nginx.conf
 COPY ./conf/default.conf /etc/nginx/conf.d/default.conf
-COPY ./conf/generate-ssl.sh /usr/local/bin/
 COPY ./docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/generate-ssl.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set up health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
@@ -36,7 +38,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 443
 
 # Set entrypoint
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start NGINX
 CMD ["nginx", "-g", "daemon off;"]

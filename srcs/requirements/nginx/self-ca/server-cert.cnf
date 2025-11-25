@@ -1,0 +1,38 @@
+# OpenSSL Server Certificate Configuration
+# This file is used to generate server certificate signing requests (CSR)
+
+[ req ]
+default_bits        = 2048
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+default_md          = sha256
+# Extension to add when generating the CSR
+req_extensions      = v3_req
+prompt              = no
+
+[ req_distinguished_name ]
+# When prompt = no, these are used as the actual values (not prompts)
+C                               = JP
+ST                              = Tokyo
+L                               = Tokyo
+O                               = 42 Tokyo
+OU                              = Cadet
+CN                              = example.com
+
+[ v3_req ]
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[ alt_names ]
+# IMPORTANT: Modify these to match your domain(s)
+# Configured for niida.42.fr domain
+DNS.1 = niida.42.fr
+DNS.2 = *.niida.42.fr
+DNS.3 = www.niida.42.fr
+DNS.4 = localhost
+DNS.5 = *.localhost
+# You can also add IP addresses
+IP.1 = 127.0.0.1
+IP.2 = ::1

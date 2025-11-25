@@ -7,7 +7,8 @@ services:
       - "443:443"
     volumes:
       - ../data/wordpress_files:/var/www/html
-      - ../data/nginx_ssl:/etc/nginx/ssl
+      - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-cert.pem:/etc/nginx/ssl/cert.pem:ro
+      - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-key.pem:/etc/nginx/ssl/key.pem:ro
     environment:
       - LOGIN=${LOGIN}
       - DOMAIN=${LOGIN}.42.fr
