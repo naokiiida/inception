@@ -40,7 +40,7 @@ COPY ./healthcheck.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/healthcheck.sh
 
 # Set up health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=1m --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=4m --retries=3 \
     CMD healthcheck.sh || exit 1
 
 # Expose port

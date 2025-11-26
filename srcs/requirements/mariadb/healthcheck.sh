@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Simple healthcheck for MariaDB
-mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" > /dev/null 2>&1
+mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" --silent
 
 if [ $? -eq 0 ]; then
     exit 0
