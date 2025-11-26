@@ -4,7 +4,7 @@ services:
       context: ./requirements/nginx
       dockerfile: Dockerfile
     ports:
-      - "443:443"
+      - "8443:443"
     volumes:
       - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
       - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-cert.pem:/etc/nginx/ssl/cert.pem:ro
@@ -33,7 +33,7 @@ services:
       - WORDPRESS_DB_USER=${DB_USER:-}
       - WORDPRESS_DB_PASSWORD=${DB_PASSWORD:-}
       - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - WORDPRESS_URL=https://${LOGIN}.42.fr
+      - WORDPRESS_URL=https://${LOGIN}.42.fr:8443
       - WORDPRESS_TITLE=${WP_TITLE}
       - WORDPRESS_ADMIN_USER=${WP_ADMIN_USER:-}
       - WORDPRESS_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD:-}
