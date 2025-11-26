@@ -103,10 +103,11 @@ help:
 	@echo "  test-nginx-host          Test nginx from host system"
 	@echo ""
 	@echo "VM management:"
-	@echo "  vm-start      Start VM (headless)"
-	@echo "  vm-start-gui  Start VM (with GUI)"
-	@echo "  vm-stop       Stop VM"
-	@echo "  vm-status     Show VM status"
+	@echo "  vm-start        Start VM (headless)"
+	@echo "  vm-start-gui    Start VM (with GUI)"
+	@echo "  vm-stop         Stop VM"
+	@echo "  vm-status       Show VM status"
+	@echo "  ssh-key-check   Check for SSH key (required for VM access)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make up                   # Start in VM (default)"
@@ -180,6 +181,30 @@ vm-guest-additions-download:
 	@VBOX_VERSION=$$(VBoxManage --version | cut -d 'r' -f1) && \
 	curl -L -o $(VBOX_GUEST_ADDITIONS_ISO) "https://download.virtualbox.org/virtualbox/$$VBOX_VERSION/VBoxGuestAdditions_$$VBOX_VERSION.iso"
 
+ssh-key-check:
+	@echo "Checking for SSH public key..."
+	@SSH_PUB_KEY_FILE=""; \
+	for key_type in id_ed25519 id_rsa id_ecdsa id_dsa; do \
+		if [ -f "$(HOME)/.ssh/$$key_type.pub" ]; then \
+			SSH_PUB_KEY_FILE="$(HOME)/.ssh/$$key_type.pub"; \
+			echo "✓ Found SSH public key: $$SSH_PUB_KEY_FILE"; \
+			echo ""; \
+			echo "Key content:"; \
+			cat "$$SSH_PUB_KEY_FILE"; \
+			echo ""; \
+			echo "This key will be injected into the VM's authorized_keys"; \
+			exit 0; \
+		fi; \
+	done; \
+	echo "✗ No SSH public key found in $(HOME)/.ssh/"; \
+	echo ""; \
+	echo "Searched for: id_ed25519.pub, id_rsa.pub, id_ecdsa.pub, id_dsa.pub"; \
+	echo ""; \
+	echo "To generate a new SSH key, run:"; \
+	echo "  ssh-keygen -t ed25519"; \
+	echo ""; \
+	exit 1
+
 vm-init:
 	@echo "Creating VM..."
 	@mkdir -p $(VM_DIR)
@@ -198,6 +223,20 @@ vm-storage:
 vm-preseed-cp:
 	@echo "Copying preseed file to shared folder..."
 	@mkdir -p $(SHARE_DIR)
+	@# Find default SSH public key (try ed25519, rsa, ecdsa, dsa in order)
+	@SSH_PUB_KEY=""; \
+	for key_type in id_ed25519 id_rsa id_ecdsa id_dsa; do \
+		if [ -f "$(HOME)/.ssh/$$key_type.pub" ]; then \
+			SSH_PUB_KEY=$$(cat $(HOME)/.ssh/$$key_type.pub); \
+			echo "Found SSH public key: $(HOME)/.ssh/$$key_type.pub"; \
+			break; \
+		fi; \
+	done; \
+	if [ -z "$$SSH_PUB_KEY" ]; then \
+		echo "ERROR: No SSH public key found in $(HOME)/.ssh/"; \
+		echo "Please generate one with: ssh-keygen -t ed25519"; \
+		exit 1; \
+	fi; \
 	sed -e 's/passwd\/username string user/passwd\/username string $(LOGIN)/g' \
 	    -e 's/passwd\/user-fullname string User/passwd\/user-fullname string $(LOGIN)/g' \
 	    -e 's/passwd\/user-password password user/passwd\/user-password password $(LOGIN)/g' \
@@ -205,7 +244,9 @@ vm-preseed-cp:
 	    -e 's/usermod -aG docker user/usermod -aG docker $(LOGIN)/g' \
 	    -e 's/\/home\/user/\/home\/$(LOGIN)/g' \
 	    -e 's/chown -R user:user/chown -R $(LOGIN):$(LOGIN)/g' \
+	    -e "s|SSH_PUBLIC_KEY_PLACEHOLDER|$$SSH_PUB_KEY|g" \
 	    preseed.cfg > $(SHARE_DIR)/preseed.cfg
+	@echo "SSH public key injected into preseed.cfg"
 	
 vm-config: vm-preseed-cp
 	@echo "Configuring VM settings..."
@@ -414,4 +455,4 @@ endif
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-data-setup vm-resync
+.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl ssh-key-check vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-data-setup vm-resync
