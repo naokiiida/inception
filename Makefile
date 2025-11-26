@@ -104,11 +104,13 @@ help:
 	@echo "  test-nginx-host          Test nginx from host system"
 	@echo ""
 	@echo "VM management:"
-	@echo "  vm-start        Start VM (headless)"
-	@echo "  vm-start-gui    Start VM (with GUI)"
-	@echo "  vm-stop         Stop VM"
-	@echo "  vm-status       Show VM status"
-	@echo "  ssh-key-check   Check for SSH key (required for VM access)"
+	@echo "  vm-start           Start VM (headless)"
+	@echo "  vm-start-gui       Start VM (with GUI)"
+	@echo "  vm-stop            Stop VM"
+	@echo "  vm-status          Show VM status"
+	@echo "  vm-install-docker  Install Docker in VM after preseed installation"
+	@echo "  vm-test-docker     Test Docker installation in VM"
+	@echo "  ssh-key-check      Check for SSH key (required for VM access)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make up                   # Start in VM (default)"
@@ -287,6 +289,15 @@ vm-serve-preseed: vm-preseed-cp
 	@echo "Stop with Ctrl+C after installation completes"
 	cd $(SHARE_DIR) && python3 -m http.server $(PRESEED_SERVER_PORT)
 
+vm-install-docker: vm-wait-ssh
+	@echo "Installing Docker in VM..."
+	@echo "Copying installation script to VM..."
+	@scp -P $(SSH_PORT) -o StrictHostKeyChecking=no scripts/install-docker.sh $(LOGIN)@localhost:~
+	@echo "Running Docker installation (this may take a few minutes)..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "sudo bash ~/install-docker.sh"
+	@echo "Docker installation complete!"
+	@echo "Note: You may need to log out and back in for group changes to take effect"
+
 vm-test-docker:
 	@echo "Testing Docker installation in VM..."
 	@echo "SSH to the VM and run:"
@@ -456,4 +467,4 @@ endif
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl ssh-key-check vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-data-setup vm-resync
+.PHONY: all help up down build clean fclean re logs ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl ssh-key-check vm vm-download vm-download-full vm-guest-additions-download vm-init vm-storage vm-config vm-create vm-serve-preseed vm-stop-preseed vm-install-docker vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-boot vm-wait-ssh vm-sync-project vm-data-setup vm-resync
