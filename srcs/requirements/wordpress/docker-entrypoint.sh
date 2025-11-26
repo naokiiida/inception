@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Generate secure random passwords if not provided
+# 1. GENERATE SECRETS (If not provided in Docker Compose)
 if [ -z "${WORDPRESS_DB_USER:-}" ]; then
     export WORDPRESS_DB_USER="wordpress_user"
     echo "Using default database user: $WORDPRESS_DB_USER"
@@ -22,42 +22,29 @@ if [ -z "${WORDPRESS_ADMIN_PASSWORD:-}" ]; then
     echo "Generated secure random admin password"
 fi
 
-# Wait for database to be ready
-until mysql -h${WORDPRESS_DB_HOST} -uroot -p${DB_ROOT_PASSWORD} -e 'SELECT 1' &> /dev/null; do
-    echo "Waiting for database connection as root..."
+# 2. WAIT FOR DATABASE
+# We use mariadb-admin (or mysqladmin) to ping until the server answers.
+echo "Waiting for MariaDB connection..."
+until mariadb-admin ping -h"${WORDPRESS_DB_HOST}" --silent; do
+    echo "Waiting for database..."
     sleep 2
 done
+echo "MariaDB is online."
 
-# Set up WordPress database and user (idempotent)
+# 3. CREATE DB USER (Idempotent)
+# This ensures the WP user exists even if the DB volume was persisted but the user wasn't.
 echo "Setting up WordPress database and user..."
-mysql -h${WORDPRESS_DB_HOST} -uroot -p${DB_ROOT_PASSWORD} <<-EOSQL
+mysql -h"${WORDPRESS_DB_HOST}" -u root -p"${DB_ROOT_PASSWORD}" <<-EOSQL
     CREATE DATABASE IF NOT EXISTS \`${WORDPRESS_DB_NAME}\`;
     CREATE USER IF NOT EXISTS '${WORDPRESS_DB_USER}'@'%' IDENTIFIED BY '${WORDPRESS_DB_PASSWORD}';
     GRANT ALL ON \`${WORDPRESS_DB_NAME}\`.* TO '${WORDPRESS_DB_USER}'@'%';
     FLUSH PRIVILEGES;
 EOSQL
 
-# Set up WordPress if it's not already installed
-if [ ! -f /var/www/html/wp-config.php ]; then
-    echo "Running WordPress setup script..."
-    /bin/bash /conf/wp-setup.sh
-else
-    echo "WordPress is already installed."
-    # Update WordPress URL if it doesn't match the expected URL
-    if [ -f /var/www/html/wp-config.php ]; then
-        CURRENT_URL=$(cd /var/www/html && wp option get siteurl --allow-root 2>/dev/null | grep -v 'PHP Warning')
-        EXPECTED_URL="${WORDPRESS_URL:-https://${LOGIN}.42.fr}"
-        
-        if [ "$CURRENT_URL" != "$EXPECTED_URL" ]; then
-            echo "Updating WordPress site URL from $CURRENT_URL to $EXPECTED_URL"
-            cd /var/www/html
-            wp option update siteurl "$EXPECTED_URL" --allow-root 2>/dev/null
-            wp option update home "$EXPECTED_URL" --allow-root 2>/dev/null
-            wp cache flush --allow-root 2>/dev/null
-        fi
-    fi
-fi
+# 4. HANDOFF TO SETUP SCRIPT
+# We run this unconditionally. The script itself checks if it needs to install or update.
+/bin/bash /conf/wp-setup.sh
 
-        
-# Execute the CMD
+# 5. EXECUTE CMD (php-fpm)
+echo "Entrypoint setup done. Executing CMD..."
 exec "$@"

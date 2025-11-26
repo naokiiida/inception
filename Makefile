@@ -60,7 +60,8 @@ PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
 PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
 # Auto-detect host IP from default route interface (e.g., 10.11.7.2 from enp4s0f0)
 # Override with: PRESEED_SERVER_IP=x.x.x.x make vm-boot
-PRESEED_SERVER_IP ?= $(shell ip route get 1.1.1.1 | grep -oP 'src \K\S+')
+IFACE := $(shell route get 1.1.1.1 | awk '/interface: / {print $$2}')
+PRESEED_SERVER_IP := $(shell ifconfig $(IFACE) | grep "inet " | grep -v inet6 | awk '{print $$2}' | head -1)
 
 ifeq ($(USE_VM),1)
     DOCKER_CMD = ssh -p $(SSH_PORT) $(LOGIN)@localhost
@@ -281,8 +282,8 @@ vm-stop-preseed:
 	fi
 
 vm-serve-preseed: vm-preseed-cp
-	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)"
-	@echo "VM will access it via http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)"
+	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)/preseed.cfg"
+	@echo "VM will access it via http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)/preseed.cfg"
 	@echo "Stop with Ctrl+C after installation completes"
 	cd $(SHARE_DIR) && python3 -m http.server $(PRESEED_SERVER_PORT)
 
