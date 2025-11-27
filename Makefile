@@ -52,6 +52,7 @@ help:
 	@echo "  test-nginx-host          Test nginx from host (with --resolve)"
 	@echo "  test-nginx-host-ssl      Test nginx with SSL verification"
 	@echo "  test-nginx-host-header   Test nginx using Host header"
+	@echo "  test-wp-url              Check WordPress URL configuration"
 	@echo ""
 	@echo "Setup:"
 	@echo "  data-setup               Create data directories"
@@ -179,14 +180,23 @@ test-nginx-host-header-ssl:
 		echo "SSL certificate not found. Run 'make up' first to generate certificates."; \
 	fi
 
+test-wp-url:
+	@echo "=== WordPress URL Configuration Check ==="
+	@echo "Expected URL (from Makefile): $(WORDPRESS_URL)"
+	@echo ""
+	@echo "Actual URLs in WordPress database:"
+	@echo -n "  siteurl: "
+	@$(COMPOSE_EXEC) wordpress wp option get siteurl --allow-root 2>/dev/null || echo "WordPress not installed yet"
+	@echo -n "  home:    "
+	@$(COMPOSE_EXEC) wordpress wp option get home --allow-root 2>/dev/null || echo "WordPress not installed yet"
+
 clean: down
 	$(DOCKER_SYSTEM) prune -f
 
 fclean: clean
 	@echo "Cleaning local data directories..."
-	rm -rf $(WORDPRESS_DB_DIR)
-	rm -rf $(WORDPRESS_FILES_DIR)
+	sudo rm -rf $(DATA_DIR)
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl
+.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url

@@ -7,8 +7,8 @@ services:
       - "8443:443"
     volumes:
       - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
-      - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-cert.pem:/etc/nginx/ssl/cert.pem:ro
-      - ./requirements/nginx/self-ca/certs/${LOGIN}.42.fr-key.pem:/etc/nginx/ssl/key.pem:ro
+      - ${VOLUME_BASE}/data/nginx_ssl/${LOGIN}.42.fr-cert.pem:/etc/nginx/ssl/cert.pem:ro
+      - ${VOLUME_BASE}/data/nginx_ssl/${LOGIN}.42.fr-key.pem:/etc/nginx/ssl/key.pem:ro
     environment:
       - LOGIN=${LOGIN}
       - DOMAIN=${LOGIN}.42.fr
