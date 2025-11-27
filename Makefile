@@ -26,11 +26,10 @@ DOCKER_SYSTEM = docker system
 all: up
 
 secrets:
-	@mkdir -p srcs/secrets
-	@cp srcs/secrets/mysql_password.txt.example srcs/secrets/mysql_password.txt
-	@cp srcs/secrets/mysql_root_password.txt.example srcs/secrets/mysql_root_password.txt
-	@cp srcs/secrets/wp_admin_pass.txt.example srcs/secrets/wp_admin_pass.txt
-	@cp srcs/secrets/wp_user_pass.txt.example srcs/secrets/wp_user_pass.txt
+	@cp secrets/mysql_password.txt.example secrets/mysql_password.txt
+	@cp secrets/mysql_root_password.txt.example secrets/mysql_root_password.txt
+	@cp secrets/wp_admin_pass.txt.example secrets/wp_admin_pass.txt
+	@cp secrets/wp_user_pass.txt.example secrets/wp_user_pass.txt
 	@cp srcs/.env.example srcs/.env
 
 data-setup: secrets
@@ -196,4 +195,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url cert-check cert-verify
+.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url cert-check cert-verify secrets
