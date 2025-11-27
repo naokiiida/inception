@@ -8,7 +8,7 @@ WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
 WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
 
 # SSL Configuration
-SSL_CA_DIR = ./srcs/requirements/tools/ssl-ca
+SSL_CA_DIR = srcs/requirements/tools/ssl-ca
 CA_CERT = $(SSL_CA_DIR)/generated/ca-cert.pem
 SERVER_CERT = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-cert.pem
 SERVER_KEY = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-key.pem
@@ -72,6 +72,13 @@ help:
 	@echo "  make test-nginx-host-ssl # Test with SSL verification"
 	@echo "  make fclean && make up   # Fresh start"
 
+secrets:
+	cp secrets/mysql_password.txt.example secrets/mysql_password.txt
+	cp secrets/mysql_root_password.txt.example secrets/mysql_root_password.txt
+	cp secrets/wp_admin_pass.txt.example secrets/wp_admin_pass.txt
+	cp secrets/wp_user_pass.txt.example secrets/wp_user_pass.txt
+	cp srcs/.env.example srcs/.env
+
 data-setup:
 	@echo "Setting up data directories at $(DATA_DIR)..."
 	@mkdir -p $(WORDPRESS_DB_DIR)
@@ -99,7 +106,7 @@ ca-create:
 cert-create: ca-create
 	@echo "=== Generating Server Certificate for $(LOGIN).42.fr ==="
 	@if [ ! -f $(SERVER_CERT) ]; then \
-		cd $(SSL_CA_DIR) && ./sign-server-cert.sh -d $(LOGIN).42.fr -a "*.$(LOGIN).42.fr,localhost,127.0.0.1"; \
+		cd $(SSL_CA_DIR) && ./sign-server-cert.sh $(LOGIN).42.fr; \
 	else \
 		echo "Certificate already exists at $(SERVER_CERT)"; \
 	fi

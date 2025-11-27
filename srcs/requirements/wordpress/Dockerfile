@@ -84,26 +84,19 @@ RUN set -eux; \
     chown -R www-data:www-data /var/www/html; \
     chmod -R 755 /var/www/html
 
-# Copy entrypoint script
 COPY ./docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Copy WordPress setup script
 COPY ./conf/wp-setup.sh /conf/wp-setup.sh
 RUN chmod +x /conf/wp-setup.sh
 
-# Set up health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD pgrep -f "php-fpm.*master" > /dev/null || exit 1
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Expose port
 EXPOSE 9000
 
-# Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Start PHP-FPM
 CMD ["php-fpm8.2", "-F"]

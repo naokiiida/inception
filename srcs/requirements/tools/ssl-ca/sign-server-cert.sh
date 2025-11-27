@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to create and sign a server certificate with the CA
-# This generates a server certificate with subjectAltName extension
-# Uses defaults from server-cert.cnf
+# Simplified version - uses server-cert.cnf for configuration
+# Only requires domain name as argument
 
 set -e  # Exit on error
 
@@ -15,43 +15,30 @@ NC='\033[0m' # No Color
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 -d DOMAIN [-a ALT_NAMES] [-o OUTPUT_DIR]"
+    echo "Usage: $0 DOMAIN"
     echo ""
-    echo "Options:"
-    echo "  -d DOMAIN       Primary domain name (required)"
-    echo "  -a ALT_NAMES    Comma-separated alternative names (optional)"
-    echo "                  Example: '*.example.com,example.org,192.168.1.1'"
-    echo "  -o OUTPUT_DIR   Output directory for certificates (default: ./generated/certs)"
+    echo "Arguments:"
+    echo "  DOMAIN       Domain name (e.g., niida.42.fr)"
     echo ""
     echo "Examples:"
-    echo "  $0 -d localhost"
-    echo "  $0 -d niida.42.fr -a '*.niida.42.fr,www.niida.42.fr'"
-    echo "  $0 -d mysite.local -a '*.mysite.local,127.0.0.1' -o /etc/nginx/ssl"
+    echo "  $0 niida.42.fr"
+    echo "  $0 localhost"
     echo ""
-    echo "Note: Subject defaults (Country, City, Org) are read from server-cert.cnf"
+    echo "Note: Subject details are read from server-cert.cnf"
     exit 1
 }
 
-# Parse command line arguments
-DOMAIN=""
-ALT_NAMES=""
-OUTPUT_DIR="./generated/certs"
-
-while getopts "d:a:o:h" opt; do
-    case $opt in
-        d) DOMAIN="$OPTARG" ;;
-        a) ALT_NAMES="$OPTARG" ;;
-        o) OUTPUT_DIR="$OPTARG" ;;
-        h) usage ;;
-        *) usage ;;
-    esac
-done
+# Get domain from first argument
+DOMAIN="$1"
 
 # Check if domain is provided
 if [ -z "$DOMAIN" ]; then
     echo -e "${RED}Error: Domain name is required${NC}"
     usage
 fi
+
+# Fixed output directory
+OUTPUT_DIR="./generated/certs"
 
 # Check if CA exists
 if [ ! -f generated/ca-cert.pem ] || [ ! -f generated/ca-key.pem ]; then
@@ -84,43 +71,9 @@ cp server-cert.cnf "$TEMP_CONFIG"
 sed -i.bak "s/^CN[[:space:]]*=.*/CN = ${DOMAIN}/" "$TEMP_CONFIG"
 rm -f "${TEMP_CONFIG}.bak"
 
-# Remove the existing alt_names section and rebuild it
-sed -i.bak '/^\[ alt_names \]/,$d' "$TEMP_CONFIG"
+# Update the DNS.1 entry in alt_names to match the domain
+sed -i.bak "s/^DNS\.1[[:space:]]*=.*/DNS.1 = ${DOMAIN}/" "$TEMP_CONFIG"
 rm -f "${TEMP_CONFIG}.bak"
-
-# Build the alt_names section dynamically
-cat >> "$TEMP_CONFIG" << EOF
-
-[ alt_names ]
-EOF
-
-echo "DNS.1 = ${DOMAIN}" >> "$TEMP_CONFIG"
-
-DNS_COUNT=2
-IP_COUNT=1
-
-# Add alternative names if provided
-if [ -n "$ALT_NAMES" ]; then
-    IFS=',' read -ra NAMES <<< "$ALT_NAMES"
-    for name in "${NAMES[@]}"; do
-        name=$(echo "$name" | xargs)  # Trim whitespace
-
-        # Check if it's an IP address
-        if [[ $name =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ $name =~ ^[0-9a-fA-F:]+$ ]]; then
-            echo "IP.${IP_COUNT} = ${name}" >> "$TEMP_CONFIG"
-            ((IP_COUNT++))
-        else
-            echo "DNS.${DNS_COUNT} = ${name}" >> "$TEMP_CONFIG"
-            ((DNS_COUNT++))
-        fi
-    done
-fi
-
-# Add localhost by default
-echo "DNS.${DNS_COUNT} = localhost" >> "$TEMP_CONFIG"
-echo "IP.${IP_COUNT} = 127.0.0.1" >> "$TEMP_CONFIG"
-((IP_COUNT++))
-echo "IP.${IP_COUNT} = ::1" >> "$TEMP_CONFIG"
 
 # Generate server private key
 echo -e "${YELLOW}Generating server private key...${NC}"
@@ -139,8 +92,7 @@ openssl req -config "$TEMP_CONFIG" \
 
 echo -e "${GREEN}CSR created: ${CSR_FILE}${NC}"
 
-# Create extension file for signing
-# CRITICAL: Must include subjectAltName for SAN to be in the certificate
+# Create extension file for signing using v3_req from the config
 EXT_FILE=$(mktemp)
 cat > "$EXT_FILE" << EOF
 basicConstraints = CA:FALSE
@@ -155,7 +107,7 @@ subjectAltName = @alt_names
 [ alt_names ]
 EOF
 
-# Copy the alt_names we built into the extension file
+# Copy the alt_names section from the temporary config
 grep "^DNS\." "$TEMP_CONFIG" >> "$EXT_FILE"
 grep "^IP\." "$TEMP_CONFIG" >> "$EXT_FILE"
 

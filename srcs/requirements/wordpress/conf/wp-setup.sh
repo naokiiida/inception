@@ -73,6 +73,15 @@ if [ ! -f wp-config.php ]; then
         wp theme install ${WORDPRESS_THEME} --activate --allow-root
     fi
 
+    # Create author user
+    if [ -n "${WORDPRESS_USER:-}" ]; then
+        wp user create "${WORDPRESS_USER}" "${WORDPRESS_USER_EMAIL}" \
+            --role=author \
+            --user_pass="${WORDPRESS_USER_PASSWORD}" \
+            --allow-root
+        echo "Author user created: ${WORDPRESS_USER}"
+    fi
+
     echo "--- Installation Complete ---"
 fi
 
@@ -96,7 +105,15 @@ if wp core is-installed --allow-root; then
             --allow-root
     fi
 
-    # 3. Flush Cache (Good practice on restart)
+    # 3. Update Author User (Password/Email sync)
+    if [ -n "${WORDPRESS_USER:-}" ] && wp user get "${WORDPRESS_USER}" --allow-root > /dev/null 2>&1; then
+        wp user update "${WORDPRESS_USER}" \
+            --user_pass="${WORDPRESS_USER_PASSWORD}" \
+            --user_email="${WORDPRESS_USER_EMAIL}" \
+            --allow-root
+    fi
+
+    # 4. Flush Cache (Good practice on restart)
     wp cache flush --allow-root
 fi
 

@@ -1,5 +1,6 @@
 # OpenSSL Server Certificate Configuration
 # This file is used to generate server certificate signing requests (CSR)
+# Simplified for 42 Inception project - only requires LOGIN.42.fr domain
 
 [ req ]
 default_bits        = 2048
@@ -17,7 +18,7 @@ ST                              = Tokyo
 L                               = Tokyo
 O                               = 42 Tokyo
 OU                              = Cadet
-CN                              = example.com
+CN                              = LOGIN.42.fr
 
 [ v3_req ]
 # Extensions to add to a certificate request
@@ -26,13 +27,8 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 subjectAltName = @alt_names
 
 [ alt_names ]
-# IMPORTANT: Modify these to match your domain(s)
-# Configured for niida.42.fr domain
-DNS.1 = niida.42.fr
-DNS.2 = *.niida.42.fr
-DNS.3 = www.niida.42.fr
-DNS.4 = localhost
-DNS.5 = *.localhost
-# You can also add IP addresses
+# Domain will be replaced by script - only LOGIN.42.fr and localhost
+DNS.1 = LOGIN.42.fr
+DNS.2 = localhost
 IP.1 = 127.0.0.1
 IP.2 = ::1

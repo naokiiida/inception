@@ -31,17 +31,18 @@ ssl-ca/
 ```
 
 This creates a CA certificate that can be imported into your browser to trust all certificates signed by it.
+You will be prompted for a PEM passphrase to encrypt the CA private key.
 
 ### 2. Generate Server Certificate
 
 ```bash
-./sign-server-cert.sh -d your-domain.42.fr -a "*.your-domain.42.fr,localhost,127.0.0.1"
+./sign-server-cert.sh your-domain.42.fr
 ```
 
-Options:
-- `-d DOMAIN`: Primary domain name (required)
-- `-a ALT_NAMES`: Comma-separated alternative names (optional)
-- `-o OUTPUT_DIR`: Output directory (default: ./generated/certs)
+Simple usage - just provide the domain name. The script will:
+- Use configuration from `server-cert.cnf` for subject details
+- Include the domain and localhost in Subject Alternative Names
+- Store certificates in `generated/certs/`
 
 ### 3. Clean Up Generated Files
 
