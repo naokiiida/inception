@@ -8,10 +8,10 @@ WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
 WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
 
 # SSL Configuration
-SELF_CA_DIR = srcs/requirements/nginx/self-ca
-CA_CERT = $(SELF_CA_DIR)/ca-cert.pem
-SERVER_CERT = $(SELF_CA_DIR)/certs/$(LOGIN).42.fr-cert.pem
-SERVER_KEY = $(SELF_CA_DIR)/certs/$(LOGIN).42.fr-key.pem
+SSL_CA_DIR = ./srcs/requirements/tools/ssl-ca
+CA_CERT = $(SSL_CA_DIR)/generated/ca-cert.pem
+SERVER_CERT = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-cert.pem
+SERVER_KEY = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-key.pem
 
 # WordPress URL Configuration
 HTTPS_PORT ?= 8443
@@ -82,7 +82,7 @@ data-setup:
 ca-create:
 	@echo "=== Creating Certificate Authority ==="
 	@if [ ! -f $(CA_CERT) ]; then \
-		cd $(SELF_CA_DIR) && ./create-ca.sh; \
+		cd $(SSL_CA_DIR) && ./create-ca.sh; \
 	else \
 		echo "CA already exists at $(CA_CERT)"; \
 	fi
@@ -99,7 +99,7 @@ ca-create:
 cert-create: ca-create
 	@echo "=== Generating Server Certificate for $(LOGIN).42.fr ==="
 	@if [ ! -f $(SERVER_CERT) ]; then \
-		cd $(SELF_CA_DIR) && ./sign-server-cert.sh -d $(LOGIN).42.fr -a "*.$(LOGIN).42.fr,localhost,127.0.0.1"; \
+		cd $(SSL_CA_DIR) && ./sign-server-cert.sh -d $(LOGIN).42.fr -a "*.$(LOGIN).42.fr,localhost,127.0.0.1"; \
 	else \
 		echo "Certificate already exists at $(SERVER_CERT)"; \
 	fi
