@@ -1,0 +1,352 @@
+# VM Management Makefile
+# This file contains all VirtualBox VM-related targets
+# Include this from main Makefile with: include Makefile.vm
+
+NAME = inception
+LOGIN ?= $(shell whoami)
+
+# Path Configuration
+GOINFRE_BASE ?= /goinfre/niida
+ISO_DIR ?= $(GOINFRE_BASE)/iso
+VM_DIR ?= $(GOINFRE_BASE)/vm
+SHARE_DIR ?= $(GOINFRE_BASE)/42share
+
+# Debian Configuration
+DEBIAN_VERSION ?= 13.1.0
+DEBIAN_ARCH ?= amd64
+DEBIAN_ISO_TYPE ?= netinst
+DEBIAN_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-$(DEBIAN_ISO_TYPE).iso
+DEBIAN_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-cd/$(DEBIAN_ISO_NAME)
+
+# Debian Full ISO Configuration
+DEBIAN_FULL_ISO_NAME = debian-$(DEBIAN_VERSION)-$(DEBIAN_ARCH)-DVD-1.iso
+DEBIAN_FULL_ISO_PATH = $(ISO_DIR)/$(DEBIAN_FULL_ISO_NAME)
+DEBIAN_FULL_ISO_URL = https://cdimage.debian.org/debian-cd/current/$(DEBIAN_ARCH)/iso-dvd/$(DEBIAN_FULL_ISO_NAME)
+
+USE_NETINST ?= 0
+ifeq ($(USE_NETINST),1)
+	DEBIAN_ISO_PATH = $(ISO_DIR)/$(DEBIAN_ISO_NAME)
+else
+	DEBIAN_ISO_PATH = $(DEBIAN_FULL_ISO_PATH)
+endif
+
+# VirtualBox Configuration
+VM_NAME ?= Inception
+VM_OSTYPE ?= Debian_64
+VM_MEMORY ?= 2048
+VM_VRAM ?= 128
+VM_CPUS ?= 2
+VM_DISK_SIZE ?= 20480
+VM_DISK_PATH = $(VM_DIR)/$(VM_NAME)/$(VM_NAME).vdi
+VBOX_GUEST_ADDITIONS_ISO = $(ISO_DIR)/VBoxGuestAdditions.iso
+
+# Port Forwarding Configuration
+SSH_PORT ?= 2222
+HTTP_PORT ?= 8080
+HTTPS_PORT ?= 8443
+
+# Network Configuration
+PRESEED_SERVER_PORT ?= 8000
+PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
+PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
+# Auto-detect host IP from default route interface (e.g., 10.11.7.2 from enp4s0f0)
+# Override with: PRESEED_SERVER_IP=x.x.x.x make vm-boot
+IFACE := $(shell route get 1.1.1.1 | awk '/interface: / {print $$2}')
+PRESEED_SERVER_IP := $(shell ifconfig $(IFACE) | grep "inet " | grep -v inet6 | awk '{print $$2}' | head -1)
+
+# Docker commands for VM mode
+DOCKER_CMD = ssh -p $(SSH_PORT) $(LOGIN)@localhost
+COMPOSE = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && LOGIN=$(LOGIN) VOLUME_BASE=/home/$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml"
+COMPOSE_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker compose -f srcs/docker-compose.yml exec"
+DOCKER_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker exec"
+DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
+
+.PHONY: vm-help vm-download vm-download-full vm-guest-additions-download ssh-key-check vm-init vm-storage vm-preseed-cp vm-config vm-boot vm-create vm-stop-preseed vm-serve-preseed vm-install-docker vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-network-setup vm-network-bridged vm-network-info vm-wait-ssh vm-sync-project vm-data-setup vm-resync vm-up vm-down vm-build vm-logs vm-clean vm-fclean
+
+vm-help:
+	@echo "VM Management Targets"
+	@echo ""
+	@echo "VM Creation:"
+	@echo "  vm-download            Download Debian netinst ISO"
+	@echo "  vm-download-full       Download full Debian DVD ISO"
+	@echo "  vm-guest-additions-download  Download VirtualBox Guest Additions"
+	@echo "  vm-create              Create and configure VM"
+	@echo "  ssh-key-check          Check for SSH key (required for VM access)"
+	@echo ""
+	@echo "VM Control:"
+	@echo "  vm-start               Start VM (headless)"
+	@echo "  vm-start-gui           Start VM (with GUI)"
+	@echo "  vm-stop                Stop VM"
+	@echo "  vm-pause               Pause VM"
+	@echo "  vm-resume              Resume VM"
+	@echo "  vm-status              Show VM status"
+	@echo ""
+	@echo "VM Configuration:"
+	@echo "  vm-network-setup       Setup NAT networking with port forwarding"
+	@echo "  vm-network-bridged     Setup bridged networking"
+	@echo "  vm-network-info        Show network configuration"
+	@echo "  vm-install-docker      Install Docker in VM after preseed installation"
+	@echo "  vm-test-docker         Test Docker installation in VM"
+	@echo ""
+	@echo "VM File Sync:"
+	@echo "  vm-sync-project        Sync project files to VM"
+	@echo "  vm-data-setup          Create data directories in VM"
+	@echo "  vm-resync              Re-sync project files to VM"
+	@echo ""
+	@echo "VM Docker Operations:"
+	@echo "  vm-up                  Start all services in VM"
+	@echo "  vm-down                Stop all services in VM"
+	@echo "  vm-build               Build all images in VM"
+	@echo "  vm-logs                Show container logs in VM"
+	@echo "  vm-clean               Clean up containers and images in VM"
+	@echo "  vm-fclean              Full clean including data directories in VM"
+	@echo ""
+	@echo "Preseed Server:"
+	@echo "  vm-serve-preseed       Start preseed server for automated installation"
+	@echo "  vm-stop-preseed        Stop preseed server"
+
+vm-download:
+	@echo "Downloading Debian ISO..."
+	@mkdir -p $(ISO_DIR)
+	curl -L -o $(DEBIAN_ISO_PATH) "$(DEBIAN_ISO_URL)"
+
+vm-download-full:
+	@echo "Downloading full Debian ISO (offline installation)..."
+	@mkdir -p $(ISO_DIR)
+	curl -L -o $(DEBIAN_FULL_ISO_PATH) "$(DEBIAN_FULL_ISO_URL)"
+
+vm-guest-additions-download:
+	@echo "Downloading VirtualBox Guest Additions ISO..."
+	@mkdir -p $(ISO_DIR)
+	@VBOX_VERSION=$$(VBoxManage --version | cut -d 'r' -f1) && \
+	curl -L -o $(VBOX_GUEST_ADDITIONS_ISO) "https://download.virtualbox.org/virtualbox/$$VBOX_VERSION/VBoxGuestAdditions_$$VBOX_VERSION.iso"
+
+ssh-key-check:
+	@echo "Checking for SSH public key..."
+	@SSH_PUB_KEY_FILE=""; \
+	for key_type in id_ed25519 id_rsa id_ecdsa id_dsa; do \
+		if [ -f "$(HOME)/.ssh/$$key_type.pub" ]; then \
+			SSH_PUB_KEY_FILE="$(HOME)/.ssh/$$key_type.pub"; \
+			echo "✓ Found SSH public key: $$SSH_PUB_KEY_FILE"; \
+			echo ""; \
+			echo "Key content:"; \
+			cat "$$SSH_PUB_KEY_FILE"; \
+			echo ""; \
+			echo "This key will be injected into the VM's authorized_keys"; \
+			exit 0; \
+		fi; \
+	done; \
+	echo "✗ No SSH public key found in $(HOME)/.ssh/"; \
+	echo ""; \
+	echo "Searched for: id_ed25519.pub, id_rsa.pub, id_ecdsa.pub, id_dsa.pub"; \
+	echo ""; \
+	echo "To generate a new SSH key, run:"; \
+	echo "  ssh-keygen -t ed25519"; \
+	echo ""; \
+	exit 1
+
+vm-init:
+	@echo "Creating VM..."
+	@mkdir -p $(VM_DIR)
+	VBoxManage createvm --name "$(VM_NAME)" --ostype "$(VM_OSTYPE)" --register --basefolder "$(VM_DIR)"
+	VBoxManage modifyvm "$(VM_NAME)" --memory $(VM_MEMORY) --vram $(VM_VRAM)
+	VBoxManage modifyvm "$(VM_NAME)" --cpus $(VM_CPUS)
+
+vm-storage:
+	@echo "Setting up storage..."
+	VBoxManage createhd --filename "$(VM_DISK_PATH)" --size $(VM_DISK_SIZE) --format VDI
+	VBoxManage storagectl "$(VM_NAME)" --name "SATA Controller" --add sata --controller IntelAHCI
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$(VM_DISK_PATH)"
+	VBoxManage storagectl "$(VM_NAME)" --name "IDE Controller" --add ide --controller PIIX4
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 0 --device 0 --type dvddrive --medium "$(DEBIAN_ISO_PATH)"
+
+vm-preseed-cp:
+	@echo "Copying preseed file to shared folder..."
+	@mkdir -p $(SHARE_DIR)
+	@# Find default SSH public key (try ed25519, rsa, ecdsa, dsa in order)
+	@SSH_PUB_KEY=""; \
+	for key_type in id_ed25519 id_rsa id_ecdsa id_dsa; do \
+		if [ -f "$(HOME)/.ssh/$$key_type.pub" ]; then \
+			SSH_PUB_KEY=$$(cat $(HOME)/.ssh/$$key_type.pub); \
+			echo "Found SSH public key: $(HOME)/.ssh/$$key_type.pub"; \
+			break; \
+		fi; \
+	done; \
+	if [ -z "$$SSH_PUB_KEY" ]; then \
+		echo "ERROR: No SSH public key found in $(HOME)/.ssh/"; \
+		echo "Please generate one with: ssh-keygen -t ed25519"; \
+		exit 1; \
+	fi; \
+	sed -e 's/passwd\/username string user/passwd\/username string $(LOGIN)/g' \
+	    -e 's/passwd\/user-fullname string User/passwd\/user-fullname string $(LOGIN)/g' \
+	    -e 's/passwd\/user-password password user/passwd\/user-password password $(LOGIN)/g' \
+	    -e 's/passwd\/user-password-again password user/passwd\/user-password-again password $(LOGIN)/g' \
+	    -e 's/usermod -aG docker user/usermod -aG docker $(LOGIN)/g' \
+	    -e 's/\/home\/user/\/home\/$(LOGIN)/g' \
+	    -e 's/chown -R user:user/chown -R $(LOGIN):$(LOGIN)/g' \
+	    -e "s|SSH_PUBLIC_KEY_PLACEHOLDER|$$SSH_PUB_KEY|g" \
+	    preseed.cfg > $(SHARE_DIR)/preseed.cfg
+	@echo "SSH public key injected into preseed.cfg"
+
+vm-config: vm-preseed-cp
+	@echo "Configuring VM settings..."
+	VBoxManage modifyvm "$(VM_NAME)" --boot1 dvd --boot2 disk --boot3 none --boot4 none
+	VBoxManage modifyvm "$(VM_NAME)" --audio-driver none
+	@mkdir -p "$(SHARE_DIR)"
+	VBoxManage sharedfolder add "$(VM_NAME)" --name "42share" --hostpath "$(SHARE_DIR)/" --automount
+	@echo "Attaching Guest Additions ISO..."
+	VBoxManage storageattach "$(VM_NAME)" --storagectl "IDE Controller" --port 1 --device 0 --type dvddrive --medium "$(VBOX_GUEST_ADDITIONS_ISO)"
+
+vm-boot:
+	@echo "VM '$(VM_NAME)' created successfully!"
+	@echo "Starting preseed server in background..."
+	nohup make vm-serve-preseed > $(PRESEED_SERVER_LOG) 2>&1 & echo $$! > $(PRESEED_SERVER_PID)
+	@sleep 2
+	@echo "Starting VM for automated installation..."
+	make vm-start-gui
+	@echo ""
+	@echo "At boot menu, press TAB and add: auto url=http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)/preseed.cfg"
+	@echo "Default credentials: root/root, $(LOGIN)/$(LOGIN)"
+	@echo "Stop preseed server with: make vm-stop-preseed"
+
+vm-create: vm-init vm-storage vm-network-setup vm-guest-additions-download vm-config vm-boot
+
+vm-stop-preseed:
+	@if [ -f $(PRESEED_SERVER_PID) ]; then \
+		kill `cat $(PRESEED_SERVER_PID)` 2>/dev/null || true; \
+		rm -f $(PRESEED_SERVER_PID) $(PRESEED_SERVER_LOG); \
+		echo "Preseed server stopped"; \
+	else \
+		echo "Preseed server not running"; \
+	fi
+
+vm-serve-preseed: vm-preseed-cp
+	@echo "Serving preseed file on http://0.0.0.0:$(PRESEED_SERVER_PORT)/preseed.cfg"
+	@echo "VM will access it via http://$(PRESEED_SERVER_IP):$(PRESEED_SERVER_PORT)/preseed.cfg"
+	@echo "Stop with Ctrl+C after installation completes"
+	cd $(SHARE_DIR) && python3 -m http.server $(PRESEED_SERVER_PORT)
+
+vm-install-docker: vm-wait-ssh
+	@echo "Installing Docker in VM..."
+	@echo "Copying installation script to VM..."
+	@scp -P $(SSH_PORT) -o StrictHostKeyChecking=no scripts/install-docker.sh $(LOGIN)@localhost:~
+	@echo "Running Docker installation (this may take a few minutes)..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "sudo bash ~/install-docker.sh $(LOGIN)"
+	@echo "Docker installation complete!"
+	@echo "Note: You may need to log out and back in for group changes to take effect"
+
+vm-test-docker:
+	@echo "Testing Docker installation in VM..."
+	@echo "SSH to the VM and run:"
+	@echo "ssh -p $(SSH_PORT) $(LOGIN)@localhost"
+	ssh -p $(SSH_PORT) $(LOGIN)@localhost "docker --version"
+	ssh -p $(SSH_PORT) $(LOGIN)@localhost "docker compose version"
+
+vm-start:
+	VBoxManage startvm "$(VM_NAME)" --type headless
+
+vm-start-gui:
+	VBoxManage startvm "$(VM_NAME)"
+
+vm-stop:
+	VBoxManage controlvm "$(VM_NAME)" poweroff
+
+vm-pause:
+	VBoxManage controlvm "$(VM_NAME)" pause
+
+vm-resume:
+	VBoxManage controlvm "$(VM_NAME)" resume
+
+vm-status:
+	VBoxManage showvminfo "$(VM_NAME)" --machinereadable | grep VMState
+
+vm-network-setup:
+	@echo "Setting up VirtualBox NAT networking with port forwarding..."
+	VBoxManage modifyvm "$(VM_NAME)" --nic1 nat
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "ssh,tcp,,$(SSH_PORT),,22"
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "http,tcp,,$(HTTP_PORT),,80"
+	VBoxManage modifyvm "$(VM_NAME)" --natpf1 "https,tcp,,$(HTTPS_PORT),,443"
+	@echo "Network setup complete:"
+	@echo "  - VM gets internet via NAT"
+	@echo "  - SSH: localhost:$(SSH_PORT)"
+	@echo "  - HTTP: localhost:$(HTTP_PORT)"
+	@echo "  - HTTPS: localhost:$(HTTPS_PORT)"
+
+vm-network-bridged:
+	@echo "Configuring VM for bridged networking..."
+	VBoxManage modifyvm "$(VM_NAME)" --nic1 bridged --bridgeadapter1 "en0"
+	@echo "Bridged networking configured"
+
+vm-network-info:
+	@echo "VM network configuration:"
+	VBoxManage showvminfo "$(VM_NAME)" | grep -E "(NIC|MAC|Cable|Line|Rule)"
+	@echo "\nPort forwarding rules:"
+	VBoxManage showvminfo "$(VM_NAME)" | grep "NIC 1 Rule"
+
+vm-wait-ssh:
+	@echo "Waiting for VM SSH to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if ssh -p $(SSH_PORT) -o ConnectTimeout=5 -o StrictHostKeyChecking=no $(LOGIN)@localhost "echo SSH ready" 2>/dev/null; then \
+			echo "SSH connection established"; \
+			exit 0; \
+		fi; \
+		echo "Attempt $$i/10 failed, waiting 3 seconds..."; \
+		sleep 3; \
+	done; \
+	echo "ERROR: Could not establish SSH connection after 10 attempts"; \
+	exit 1
+
+vm-sync-project: vm-wait-ssh
+	@echo "Syncing project files to VM..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "mkdir -p /home/$(LOGIN)"
+	@rsync -avz --delete \
+		--exclude='.git/' \
+		--exclude='data/' \
+		--exclude='*.vdi' \
+		--exclude='*.iso' \
+		--exclude='.DS_Store' \
+		--exclude='__pycache__/' \
+		--exclude='*.pyc' \
+		-e "ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no" \
+		./ $(LOGIN)@localhost:/home/$(LOGIN)/inception/
+	@echo "Project files synced successfully"
+
+vm-data-setup: vm-wait-ssh
+	@echo "Setting up data directories in VM at /home/$(LOGIN)/data..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
+		mkdir -p /home/$(LOGIN)/data/wordpress_db && \
+		mkdir -p /home/$(LOGIN)/data/wordpress_files && \
+		chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data && \
+		echo 'Data directories created successfully at /home/$(LOGIN)/data'"
+
+vm-resync:
+	@echo "Re-syncing project files to VM..."
+	@$(MAKE) vm-sync-project
+
+# Docker operations in VM mode
+vm-up: vm-start vm-sync-project vm-data-setup
+	@echo "Starting Docker services in VM..."
+	$(COMPOSE) up -d
+
+vm-down:
+	@echo "Stopping Docker services in VM..."
+	$(COMPOSE) down
+
+vm-build:
+	@echo "Building Docker images in VM..."
+	$(COMPOSE) build
+
+vm-logs:
+	@echo "Showing Docker logs in VM..."
+	$(COMPOSE) logs -f
+
+vm-clean: vm-down
+	@echo "Cleaning Docker system in VM..."
+	$(DOCKER_SYSTEM) prune -f
+
+vm-fclean: vm-clean
+	@echo "Cleaning data directories in VM at /home/$(LOGIN)/data..."
+	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
+		rm -rf /home/$(LOGIN)/data/wordpress_db && \
+		rm -rf /home/$(LOGIN)/data/wordpress_files && \
+		echo 'Data directories cleaned at /home/$(LOGIN)/data'"
