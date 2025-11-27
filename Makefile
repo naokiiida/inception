@@ -141,6 +141,9 @@ down:
 build:
 	$(COMPOSE) build
 
+ps:
+	$(COMPOSE) ps
+
 logs:
 	$(COMPOSE) logs -f
 
