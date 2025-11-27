@@ -25,53 +25,6 @@ DOCKER_SYSTEM = docker system
 
 all: up
 
-help:
-	@echo "Inception Docker Project"
-	@echo ""
-	@echo "Environment Variables:"
-	@echo "  LOGIN       Your login name (default: current user)"
-	@echo "  HTTPS_PORT  HTTPS port for nginx (default: 8443)"
-	@echo ""
-	@echo "Main targets:"
-	@echo "  up          Start all services (includes SSL setup)"
-	@echo "  down        Stop all services"
-	@echo "  build       Build all images"
-	@echo "  clean       Clean up containers and images"
-	@echo "  fclean      Full clean including data directories"
-	@echo "  re          Rebuild everything (fclean + up)"
-	@echo "  logs        Show container logs"
-	@echo ""
-	@echo "SSL Certificate Setup:"
-	@echo "  ca-create               Create Certificate Authority (one-time)"
-	@echo "  cert-create             Generate server certificate for $(LOGIN).42.fr"
-	@echo "  ssl-setup               Complete SSL setup (CA + cert + copy to data dir)"
-	@echo "  browser-setup           Show browser configuration instructions"
-	@echo ""
-	@echo "Testing targets:"
-	@echo "  test-nginx-internal      Test nginx from inside container"
-	@echo "  test-nginx-host          Test nginx from host (with --resolve)"
-	@echo "  test-nginx-host-ssl      Test nginx with SSL verification"
-	@echo "  test-nginx-host-header   Test nginx using Host header"
-	@echo "  test-wp-url              Check WordPress URL configuration"
-	@echo ""
-	@echo "Certificate Verification:"
-	@echo "  cert-check               View certificate details and SANs"
-	@echo "  cert-verify              Verify certificate chain (should show OK)"
-	@echo ""
-	@echo "Setup:"
-	@echo "  data-setup               Create data directories"
-	@echo ""
-	@echo "VM Management:"
-	@echo "  For VM-related operations, use: make -f Makefile.vm vm-help"
-	@echo ""
-	@echo "WordPress URL: $(WORDPRESS_URL)"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make up                  # Start services locally"
-	@echo "  make browser-setup       # Show how to configure browser"
-	@echo "  make test-nginx-host-ssl # Test with SSL verification"
-	@echo "  make fclean && make up   # Fresh start"
-
 secrets:
 	cp secrets/mysql_password.txt.example secrets/mysql_password.txt
 	cp secrets/mysql_root_password.txt.example secrets/mysql_root_password.txt
@@ -79,7 +32,7 @@ secrets:
 	cp secrets/wp_user_pass.txt.example secrets/wp_user_pass.txt
 	cp srcs/.env.example srcs/.env
 
-data-setup:
+data-setup: secrets
 	@echo "Setting up data directories at $(DATA_DIR)..."
 	@mkdir -p $(WORDPRESS_DB_DIR)
 	@mkdir -p $(WORDPRESS_FILES_DIR)
