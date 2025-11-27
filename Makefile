@@ -377,9 +377,9 @@ vm-sync-project: vm-wait-ssh
 vm-data-setup: vm-wait-ssh
 	@echo "Setting up data directories in VM at /home/$(LOGIN)/data..."
 	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
-		sudo mkdir -p /home/$(LOGIN)/data/wordpress_db && \
-		sudo mkdir -p /home/$(LOGIN)/data/wordpress_files && \
-		sudo chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data && \
+		mkdir -p /home/$(LOGIN)/data/wordpress_db && \
+		mkdir -p /home/$(LOGIN)/data/wordpress_files && \
+		chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data && \
 		echo 'Data directories created successfully at /home/$(LOGIN)/data'"
 
 vm-resync:
@@ -455,8 +455,8 @@ ifeq ($(USE_VM),1)
 fclean: clean
 	@echo "Cleaning data directories in VM at /home/$(LOGIN)/data..."
 	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
-		sudo rm -rf /home/$(LOGIN)/data/wordpress_db && \
-		sudo rm -rf /home/$(LOGIN)/data/wordpress_files && \
+		rm -rf /home/$(LOGIN)/data/wordpress_db && \
+		rm -rf /home/$(LOGIN)/data/wordpress_files && \
 		echo 'Data directories cleaned at /home/$(LOGIN)/data'"
 else
 fclean: clean
