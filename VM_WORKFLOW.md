@@ -28,7 +28,7 @@
 
 5. **Start the Inception project:**
    ```bash
-   make up
+   make vm-up
    ```
 
 ## Notes
