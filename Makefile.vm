@@ -1,4 +1,4 @@
- VM Management Makefile
+# VM Management Makefile
 # This file contains all VirtualBox VM-related targets
 # Include this from main Makefile with: include Makefile.vm
 
