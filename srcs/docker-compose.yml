@@ -3,6 +3,7 @@ services:
     build:
       context: ./requirements/nginx
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8443:443"
     volumes:
@@ -17,7 +18,8 @@ services:
       - BACKEND_PROTOCOL=${BACKEND_PROTOCOL:-fastcgi}
       - APP_ROOT=${APP_ROOT:-/var/www/html}
     depends_on:
-      - wordpress
+      wordpress:
+        condition: service_healthy
     networks:
       - inception
 
@@ -25,6 +27,7 @@ services:
     build:
       context: ./requirements/wordpress
       dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
     environment:
@@ -51,6 +54,7 @@ services:
     build:
       context: ./requirements/mariadb
       dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - ${VOLUME_BASE}/data/wordpress_db:/var/lib/mysql
     environment:

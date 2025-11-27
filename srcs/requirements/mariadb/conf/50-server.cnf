@@ -1,5 +1,11 @@
-[mysqld]
+[mariadbd]
+user = mysql
+port = 3306
 bind-address = 0.0.0.0
-skip-name-resolve
+
+# Character set defaults
 character-set-server = utf8mb4
-collation-server = utf8mb4_unicode_ci 
+collation-server = utf8mb4_unicode_ci
+
+# Performance & Security
+skip-name-resolve = 1

@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 \
     lsb-release \
     mariadb-client \
+    netcat-openbsd \
     && curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg \
     && echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list \
     && apt-get update \
@@ -90,8 +91,11 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY ./conf/wp-setup.sh /conf/wp-setup.sh
 RUN chmod +x /conf/wp-setup.sh
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD pgrep -f "php-fpm.*master" > /dev/null || exit 1
+COPY ./healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD healthcheck.sh || exit 1
 
 WORKDIR /var/www/html
 
