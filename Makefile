@@ -26,11 +26,12 @@ DOCKER_SYSTEM = docker system
 all: up
 
 secrets:
-	cp secrets/mysql_password.txt.example secrets/mysql_password.txt
-	cp secrets/mysql_root_password.txt.example secrets/mysql_root_password.txt
-	cp secrets/wp_admin_pass.txt.example secrets/wp_admin_pass.txt
-	cp secrets/wp_user_pass.txt.example secrets/wp_user_pass.txt
-	cp srcs/.env.example srcs/.env
+	@mkdir -p srcs/secrets
+	@cp srcs/secrets/mysql_password.txt.example srcs/secrets/mysql_password.txt
+	@cp srcs/secrets/mysql_root_password.txt.example srcs/secrets/mysql_root_password.txt
+	@cp srcs/secrets/wp_admin_pass.txt.example srcs/secrets/wp_admin_pass.txt
+	@cp srcs/secrets/wp_user_pass.txt.example srcs/secrets/wp_user_pass.txt
+	@cp srcs/.env.example srcs/.env
 
 data-setup: secrets
 	@echo "Setting up data directories at $(DATA_DIR)..."
