@@ -54,6 +54,10 @@ help:
 	@echo "  test-nginx-host-header   Test nginx using Host header"
 	@echo "  test-wp-url              Check WordPress URL configuration"
 	@echo ""
+	@echo "Certificate Verification:"
+	@echo "  cert-check               View certificate details and SANs"
+	@echo "  cert-verify              Verify certificate chain (should show OK)"
+	@echo ""
 	@echo "Setup:"
 	@echo "  data-setup               Create data directories"
 	@echo ""
@@ -102,13 +106,15 @@ cert-create: ca-create
 	@echo "✅ Server certificate created for $(LOGIN).42.fr"
 
 ssl-setup: data-setup cert-create
-	@echo "=== Copying SSL certificates to $(NGINX_SSL_DIR) ==="
-	@cp $(SERVER_CERT) $(NGINX_SSL_DIR)/cert.pem
-	@cp $(SERVER_KEY) $(NGINX_SSL_DIR)/key.pem
-	@cp $(CA_CERT) $(NGINX_SSL_DIR)/ca-cert.pem
-	@echo "✅ SSL certificates copied to $(NGINX_SSL_DIR)/"
-	@echo ""
-	@echo "WordPress URL: $(WORDPRESS_URL)"
+	@if [ ! -f $(NGINX_SSL_DIR)/cert.pem ]; then \
+		cp $(SERVER_CERT) $(NGINX_SSL_DIR)/cert.pem; \
+	fi
+	@if [ ! -f $(NGINX_SSL_DIR)/key.pem ]; then \
+		cp $(SERVER_KEY) $(NGINX_SSL_DIR)/key.pem; \
+	fi
+	@if [ ! -f $(NGINX_SSL_DIR)/ca-cert.pem ]; then \
+		cp $(CA_CERT) $(NGINX_SSL_DIR)/ca-cert.pem; \
+	fi
 
 browser-setup:
 	@echo ""
@@ -193,6 +199,33 @@ test-wp-url:
 	@echo -n "  home:    "
 	@$(COMPOSE_EXEC) wordpress wp option get home --allow-root 2>/dev/null || echo "WordPress not installed yet"
 
+cert-check:
+	@echo "=== Certificate Details Check ==="
+	@if [ -f $(NGINX_SSL_DIR)/cert.pem ]; then \
+		echo "Certificate file: $(NGINX_SSL_DIR)/cert.pem"; \
+		echo ""; \
+		echo "Subject Alternative Names:"; \
+		openssl x509 -noout -text -in $(NGINX_SSL_DIR)/cert.pem | grep -A1 "Subject Alternative Name"; \
+		echo ""; \
+		echo "Full certificate details:"; \
+		openssl x509 -noout -text -in $(NGINX_SSL_DIR)/cert.pem; \
+	else \
+		echo "Certificate not found at $(NGINX_SSL_DIR)/cert.pem"; \
+		echo "Run 'make ssl-setup' first to generate certificates."; \
+	fi
+
+cert-verify:
+	@echo "=== Certificate Chain Verification ==="
+	@if [ -f $(NGINX_SSL_DIR)/cert.pem ] && [ -f $(NGINX_SSL_DIR)/ca-cert.pem ]; then \
+		echo "Verifying: $(NGINX_SSL_DIR)/cert.pem"; \
+		echo "Against CA: $(NGINX_SSL_DIR)/ca-cert.pem"; \
+		echo ""; \
+		openssl verify -CAfile $(NGINX_SSL_DIR)/ca-cert.pem $(NGINX_SSL_DIR)/cert.pem; \
+	else \
+		echo "Certificate or CA not found."; \
+		echo "Run 'make ssl-setup' first to generate certificates."; \
+	fi
+
 clean: down
 	$(DOCKER_SYSTEM) prune -f
 
@@ -202,4 +235,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url
+.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url cert-check cert-verify
