@@ -25,11 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure MariaDB
-RUN mkdir -p /var/run/mysqld \
-    && chown -R mysql:mysql /var/run/mysqld \
-    && chmod 777 /var/run/mysqld \
-    && mkdir -p /var/log/mysql \
-    && chown -R mysql:mysql /var/log/mysql
+RUN set -ex \
+    && mkdir -p /var/lib/mysql /var/run/mysqld /etc/mysql /var/log/mysql \
+    && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld /var/log/mysql \
+    && chmod 755 /var/run/mysqld \
+    && mariadb-install-db --user=mysql --ldata=/var/lib/mysql
 
 # Copy configuration
 COPY ./conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
@@ -46,11 +46,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5m --retries=3 \
 # Expose port
 EXPOSE 3306
 
-# Set up volumes
-VOLUME ["/var/lib/mysql"]
-
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start MariaDB
-CMD ["mysqld"]
+CMD ["mariadbd", "-u", "mysql"]

@@ -20,4 +20,4 @@ mariadbd -u mysql --bootstrap <<EOF
 EOF
 
 echo "Starting MariaDB server..."
-exec mariadbd -u mysql
+exec "$@"
