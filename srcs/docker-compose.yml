@@ -59,32 +59,18 @@ services:
     secrets:
       - mysql_password
       - mysql_root_password
-    healthcheck:
-      test: ["CMD", "healthcheck.sh"]
-      start_period: 30s
-      interval: 10s
-      timeout: 5s
-      retries: 3
     networks:
       - inception
 
-# volumes:
-  # wordpress_db:
-  #   driver: local
-  # wordpress_files:
-  #   driver: local
-  # nginx_ssl:
-  #   driver: local
-
 secrets:
   mysql_password:
-    file: ./secrets/mysql_password.txt
+    file: ../secrets/mysql_password.txt
   mysql_root_password:
-    file: ./secrets/mysql_root_password.txt
+    file: ../secrets/mysql_root_password.txt
   wp_admin_pass:
-    file: ./secrets/wp_admin_pass.txt
+    file: ../secrets/wp_admin_pass.txt
   wp_user_pass:
-    file: ./secrets/wp_user_pass.txt
+    file: ../secrets/wp_user_pass.txt
 
 networks:
   inception:
