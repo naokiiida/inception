@@ -52,7 +52,7 @@ PRESEED_SERVER_LOG ?= /tmp/preseed-server.log
 PRESEED_SERVER_PID ?= /tmp/preseed-server.pid
 # Auto-detect host IP from default route interface (e.g., 10.11.7.2 from enp4s0f0)
 # Override with: PRESEED_SERVER_IP=x.x.x.x make vm-boot
-PRESEED_SERVER_IP := $(shell ip route get 1.1.1.1 | awk '($1 == "1.1.1.1") {print $7}')
+PRESEED_SERVER_IP := $(shell ip route get 1.1.1.1 | awk '($$1 == "1.1.1.1") {print $$7}')
 
 # Docker commands for VM mode
 DOCKER_CMD = ssh -p $(SSH_PORT) $(LOGIN)@localhost
