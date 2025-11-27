@@ -1,0 +1,7 @@
+# Ignore all generated files and directories
+generated/
+
+# Temporary files
+*.tmp
+*.bak
+.rand

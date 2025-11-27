@@ -21,7 +21,7 @@ usage() {
     echo "  -d DOMAIN       Primary domain name (required)"
     echo "  -a ALT_NAMES    Comma-separated alternative names (optional)"
     echo "                  Example: '*.example.com,example.org,192.168.1.1'"
-    echo "  -o OUTPUT_DIR   Output directory for certificates (default: ./certs)"
+    echo "  -o OUTPUT_DIR   Output directory for certificates (default: ./generated/certs)"
     echo ""
     echo "Examples:"
     echo "  $0 -d localhost"
@@ -35,7 +35,7 @@ usage() {
 # Parse command line arguments
 DOMAIN=""
 ALT_NAMES=""
-OUTPUT_DIR="./certs"
+OUTPUT_DIR="./generated/certs"
 
 while getopts "d:a:o:h" opt; do
     case $opt in
@@ -54,8 +54,8 @@ if [ -z "$DOMAIN" ]; then
 fi
 
 # Check if CA exists
-if [ ! -f ca-cert.pem ] || [ ! -f ca-key.pem ]; then
-    echo -e "${RED}Error: CA certificate or key not found${NC}"
+if [ ! -f generated/ca-cert.pem ] || [ ! -f generated/ca-key.pem ]; then
+    echo -e "${RED}Error: CA certificate or key not found in generated/ directory${NC}"
     echo "Please run create-ca.sh first to set up the Certificate Authority"
     exit 1
 fi
@@ -162,8 +162,8 @@ grep "^IP\." "$TEMP_CONFIG" >> "$EXT_FILE"
 # Sign the certificate with the CA
 echo -e "${YELLOW}Signing certificate with CA...${NC}"
 openssl x509 -req -in "$CSR_FILE" \
-    -CA ca-cert.pem \
-    -CAkey ca-key.pem \
+    -CA generated/ca-cert.pem \
+    -CAkey generated/ca-key.pem \
     -CAcreateserial \
     -out "$CERT_FILE" \
     -days 375 -sha256 \
@@ -198,4 +198,4 @@ echo "  ssl_certificate_key ${KEY_FILE};"
 echo ""
 echo -e "${YELLOW}Verify the certificate:${NC}"
 echo "  openssl x509 -noout -text -in ${CERT_FILE} | grep -A10 'X509v3 Subject Alternative Name'"
-echo "  openssl verify -CAfile ca-cert.pem ${CERT_FILE}"
+echo "  openssl verify -CAfile generated/ca-cert.pem ${CERT_FILE}"
