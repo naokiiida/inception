@@ -1,4 +1,4 @@
-# VM Management Makefile
+ VM Management Makefile
 # This file contains all VirtualBox VM-related targets
 # Include this from main Makefile with: include Makefile.vm
 
@@ -331,7 +331,6 @@ vm-data-setup: vm-wait-ssh
 	@ssh -p $(SSH_PORT) -o StrictHostKeyChecking=no $(LOGIN)@localhost "\
 		mkdir -p /home/$(LOGIN)/data/wordpress_db && \
 		mkdir -p /home/$(LOGIN)/data/wordpress_files && \
-		chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data && \
 		echo 'Data directories created successfully at /home/$(LOGIN)/data'"
 
 vm-resync:
