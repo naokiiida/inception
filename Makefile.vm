@@ -61,7 +61,7 @@ COMPOSE_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker compose -f s
 DOCKER_EXEC = $(DOCKER_CMD) "cd /home/$(LOGIN)/inception && docker exec"
 DOCKER_SYSTEM = $(DOCKER_CMD) "docker system"
 
-.PHONY: vm-help vm-download vm-download-full vm-guest-additions-download ssh-key-check vm-init vm-storage vm-preseed-cp vm-config vm-boot vm-create vm-stop-preseed vm-serve-preseed vm-install-docker vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-check-state vm-network-setup vm-network-bridged vm-network-info vm-wait-ssh vm-sync-project vm-data-setup vm-resync vm-up vm-down vm-build vm-logs vm-clean vm-fclean
+.PHONY: vm-help vm-download vm-download-full vm-guest-additions-download ssh-key-check vm-init vm-storage vm-preseed-cp vm-config vm-boot vm-create vm-stop-preseed vm-serve-preseed vm-install-docker vm-test-docker vm-start vm-start-gui vm-stop vm-pause vm-resume vm-status vm-check-state vm-network-setup vm-network-bridged vm-network-info vm-wait-ssh vm-sync-project vm-data-setup vm-resync vm-firefox vm-up vm-down vm-build vm-logs vm-clean vm-fclean
 
 vm-help:
 	@echo "VM Management Targets"
@@ -93,6 +93,9 @@ vm-help:
 	@echo "  vm-sync-project        Sync project files to VM"
 	@echo "  vm-data-setup          Create data directories in VM"
 	@echo "  vm-resync              Re-sync project files to VM"
+	@echo ""
+	@echo "VM Applications:"
+	@echo "  vm-firefox             Start Firefox with X11 forwarding"
 	@echo ""
 	@echo "VM Docker Operations:"
 	@echo "  vm-up                  Start all services in VM"
@@ -335,6 +338,10 @@ vm-data-setup: vm-wait-ssh
 vm-resync:
 	@echo "Re-syncing project files to VM..."
 	@$(MAKE) vm-sync-project
+
+vm-firefox:
+	@echo "Starting Firefox in VM with X11 forwarding..."
+	ssh -p $(SSH_PORT) -YC $(LOGIN)@localhost "firefox &"
 
 # Docker operations in VM mode
 vm-up: vm-start vm-sync-project vm-data-setup

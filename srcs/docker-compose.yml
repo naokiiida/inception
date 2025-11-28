@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8443:443"
+      - "443:443"
     volumes:
       - ${VOLUME_BASE}/data/wordpress_files:/var/www/html
       - ${VOLUME_BASE}/data/nginx_ssl/cert.pem:/etc/nginx/ssl/cert.pem:ro
@@ -34,7 +34,7 @@ services:
       - WORDPRESS_DB_HOST=mariadb
       - WORDPRESS_DB_NAME=${DB_NAME}
       - WORDPRESS_DB_USER=${DB_USER}
-      - WORDPRESS_URL=https://${LOGIN}.42.fr:8443
+      - WORDPRESS_URL=https://${LOGIN}.42.fr
       - WORDPRESS_TITLE=${WP_TITLE}
       - WORDPRESS_ADMIN_USER=${WP_ADMIN_USER}
       - WORDPRESS_ADMIN_EMAIL=${WP_ADMIN_EMAIL}

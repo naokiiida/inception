@@ -16,7 +16,7 @@ SERVER_CERT = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-cert.pem
 SERVER_KEY = $(SSL_CA_DIR)/generated/certs/$(LOGIN).42.fr-key.pem
 
 # WordPress URL Configuration
-HTTPS_PORT ?= 8443
+HTTPS_PORT ?= 443
 WORDPRESS_URL = https://$(LOGIN).42.fr:$(HTTPS_PORT)
 
 # Docker configuration for local execution
@@ -197,4 +197,8 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url cert-check cert-verify secrets
+vm:
+	$(MAKE) -f Makefile.vm vm-up
+	$(MAKE) -f Makefile.vm vm-firefox
+
+.PHONY: all help up down build clean fclean re logs data-setup ca-create cert-create ssl-setup browser-setup test-nginx-internal test-nginx-internal-ssl test-nginx-host test-nginx-host-ssl test-nginx-host-header test-nginx-host-header-ssl test-wp-url cert-check cert-verify secrets vm
