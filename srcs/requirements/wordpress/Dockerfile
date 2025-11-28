@@ -14,34 +14,29 @@ ENV WORDPRESS_THEME=""
 ENV WORDPRESS_PLUGINS=""
 
 # Install required tools and PHP with extensions
+# Note: Debian Bookworm includes PHP 8.2 in default repos, no need for external repository
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    gnupg2 \
-    lsb-release \
     mariadb-client \
     netcat-openbsd \
-    && curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg \
-    && echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        php8.2-fpm \
-        php8.2-mysql \
-        php8.2-curl \
-        php8.2-gd \
-        php8.2-mbstring \
-        php8.2-xml \
-        php8.2-zip \
-        php8.2-intl \
-        php8.2-opcache \
-        php8.2-common \
-        php8.2-soap \
-        php8.2-redis \
-        php8.2-imagick \
-        php8.2-bcmath \
-        php8.2-imap \
-        php8.2-xmlrpc \
-        php8.2-readline \
+    php8.2-fpm \
+    php8.2-mysql \
+    php8.2-curl \
+    php8.2-gd \
+    php8.2-mbstring \
+    php8.2-xml \
+    php8.2-zip \
+    php8.2-intl \
+    php8.2-opcache \
+    php8.2-common \
+    php8.2-soap \
+    php8.2-redis \
+    php8.2-imagick \
+    php8.2-bcmath \
+    php8.2-imap \
+    php8.2-xmlrpc \
+    php8.2-readline \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/www/html \
     && chown -R www-data:www-data /var/www/html \

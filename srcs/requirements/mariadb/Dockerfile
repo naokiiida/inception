@@ -28,8 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN set -ex \
     && mkdir -p /var/lib/mysql /var/run/mysqld /etc/mysql /var/log/mysql \
     && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld /var/log/mysql \
-    && chmod 755 /var/run/mysqld \
-    && mariadb-install-db --user=mysql --ldata=/var/lib/mysql
+    && chmod 755 /var/run/mysqld
 
 # Copy configuration
 COPY ./conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf

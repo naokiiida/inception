@@ -2,7 +2,9 @@ NAME = inception
 LOGIN ?= $(shell whoami)
 
 # Path Configuration
-DATA_DIR ?= /home/$(LOGIN)/data
+VOLUME_BASE=/home
+# VOLUME_BASE=$(shell pwd)
+DATA_DIR ?= $(VOLUME_BASE)/$(LOGIN)/data
 NGINX_SSL_DIR ?= $(DATA_DIR)/nginx_ssl
 WORDPRESS_DB_DIR ?= $(DATA_DIR)/wordpress_db
 WORDPRESS_FILES_DIR ?= $(DATA_DIR)/wordpress_files
@@ -18,7 +20,7 @@ HTTPS_PORT ?= 8443
 WORDPRESS_URL = https://$(LOGIN).42.fr:$(HTTPS_PORT)
 
 # Docker configuration for local execution
-COMPOSE = LOGIN=$(LOGIN) VOLUME_BASE=/home/$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
+COMPOSE = LOGIN=$(LOGIN) VOLUME_BASE=$(VOLUME_BASE)/$(LOGIN) COMPOSE_BAKE=true docker compose -f srcs/docker-compose.yml
 COMPOSE_EXEC = docker compose -f srcs/docker-compose.yml exec
 DOCKER_EXEC = docker exec
 DOCKER_SYSTEM = docker system

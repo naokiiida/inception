@@ -8,16 +8,26 @@ MYSQL_USER=${MYSQL_USER:-wordpress_user}
 export MYSQL_ROOT_PASSWORD=$(cat /run/secrets/mysql_root_password)
 export MYSQL_PASSWORD=$(cat /run/secrets/mysql_password)
 
-mariadbd -u mysql --bootstrap <<EOF
-    USE mysql;
-    FLUSH PRIVILEGES;
+# Check if database needs initialization
+if [ ! -d "/var/lib/mysql/mysql" ]; then
+    echo "Initializing MariaDB database..."
+    mariadb-install-db --user=mysql --ldata=/var/lib/mysql
 
-    CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-    CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-    GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;
-    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-    FLUSH PRIVILEGES;
+    echo "Configuring MariaDB users and database..."
+    mariadbd -u mysql --bootstrap <<EOF
+        USE mysql;
+        FLUSH PRIVILEGES;
+
+        CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+        CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+        GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;
+        ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+        FLUSH PRIVILEGES;
 EOF
+    echo "MariaDB initialization complete."
+else
+    echo "MariaDB database already initialized, skipping setup."
+fi
 
 echo "Starting MariaDB server..."
 exec "$@"
